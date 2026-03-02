@@ -29,7 +29,7 @@ class NVIDIAAnalyzer:
         """初始化分析器，加载配置"""
         self.api_key = self._load_api_key()
         self.api_base = os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1")
-        self.model = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+        self.model = os.getenv("NVIDIA_MODEL", "z-ai/glm4.7")
         # 注：GLM-4.7 可能需要确认正确的模型名称
     
     def _load_api_key(self) -> str:

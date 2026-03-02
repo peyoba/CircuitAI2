@@ -32,9 +32,10 @@ env/
 *.swo
 *~
 
-# Environment variables
-.env
+# Environment variables (keep example)
+backend/.env
 *.env
+!.env.example
 
 # Logs
 *.log

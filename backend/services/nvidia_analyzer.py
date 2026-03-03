@@ -207,6 +207,13 @@ class NVIDIAAnalyzer:
     
     def _parse_analysis_response(self, response: str) -> Dict[str, Any]:
         """解析分析响应"""
+        if response is None:
+            return {
+                "components": [],
+                "topology": "API 返回为空",
+                "function": "无法解析",
+                "key_nodes": []
+            }
         json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
         if json_match:
             try:
@@ -228,6 +235,15 @@ class NVIDIAAnalyzer:
     
     def _parse_full_response(self, response: str) -> Dict[str, Any]:
         """解析完整分析响应"""
+        if response is None:
+            return {
+                "components": [],
+                "topology": "API 返回为空",
+                "function": "",
+                "key_nodes": [],
+                "bom": [],
+                "errors": []
+            }
         json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
         if json_match:
             try:

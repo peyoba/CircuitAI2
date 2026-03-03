@@ -1,24 +1,18 @@
 # CircuitAI Backend Requirements
-
 # Web Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-
+python-multipart==0.0.22
 # HTTP Client
 httpx==0.25.2
-
 # Data Validation
 pydantic==2.5.0
-
 # Image Processing
 Pillow==10.1.0
-
 # PDF Support
 PyPDF2==3.0.1
-
 # Environment
 python-dotenv==1.0.0
-
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1

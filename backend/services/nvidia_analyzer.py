@@ -72,73 +72,81 @@ class NVIDIAAnalyzer:
         return result
     
     def _build_analysis_prompt(self) -> str:
-        """构建电路图分析 Prompt"""
-        return """你是一个专业的硬件工程师，擅长分析电路原理图。
+        """构建电路图分析 Prompt（优化版）"""
+        return """你是一个专业的硬件工程师，擅长分析电路原理图。请仔细分析这张电路图。
 
-请仔细分析这张电路图，提取以下信息：
+**输出要求**：
+1. 必须输出有效的 JSON 格式
+2. 使用英文键名（components, topology, function, key_nodes）
+3. 确保所有字段都有值
 
-## 1. 元件列表
-识别所有元件，包括：
-- 电阻（R1, R2, ...）
-- 电容（C1, C2, ...）
-- 电感（L1, L2, ...）
-- 二极管（D1, D2, ...）
-- 三极管（Q1, Q2, ...）
-- 芯片（U1, U2, ...）
-- 电源、接地符号
+**分析内容**：
 
-每个元件请标注：
-- 编号（如 R1）
-- 型号或参数（如 10K, 100nF）
-- 引脚连接
+## 1. 元件列表 (components)
+识别所有元件，每个元件包含：
+- ref: 编号（如 R1, C1, U1）
+- type: 类型（Resistor, Capacitor, Inductor, Diode, Transistor, IC, LED）
+- value: 参数值（如 10K, 100nF, LM7805）
+- pins: 引脚连接描述
 
-## 2. 拓扑结构
-描述电路的拓扑结构：
-- 电源路径（从电源到各模块）
-- 信号路径（主要信号流向）
-- 接地方式（单点接地/多点接地）
-- 模块划分（电源模块、信号处理模块等）
+## 2. 拓扑结构 (topology)
+简明描述：
+- 电源路径：从输入到各模块的供电路线
+- 信号路径：主要信号流向
+- 接地方式
+- 模块划分
 
-## 3. 电路功能
-用简洁的语言描述这个电路的功能：
-- 这是什么类型的电路？（电源、放大器、滤波器、控制电路等）
-- 主要作用是什么？
-- 典型应用场景？
+## 3. 电路功能 (function)
+- circuit_type: 电路类型（如 Power Supply, Amplifier, Filter）
+- description: 功能描述（50字以内）
+- applications: 典型应用
 
-## 4. 关键节点
-标注电路中的关键节点：
-- 电源输入点
-- 信号输入/输出点
-- 关键测试点
-- 反馈节点
+## 4. 关键节点 (key_nodes)
+列出重要测试点：
+- name: 节点名称
+- description: 功能描述
 
-请以 JSON 格式输出结果。"""
+请严格按照以下 JSON 格式输出：
+```json
+{
+  "components": [{"ref": "R1", "type": "Resistor", "value": "10K", "pins": "VCC to GPIO1"}],
+  "topology": "电源路径描述...",
+  "function": {"circuit_type": "Power Supply", "description": "...", "applications": "..."},
+  "key_nodes": [{"name": "VIN", "description": "电源输入"}]
+}
+```"""
 
     def _build_full_analysis_prompt(self) -> str:
-        """构建完整分析 Prompt"""
-        return """你是一个专业的硬件工程师，擅长分析电路原理图。
+        """构建完整分析 Prompt（优化版）"""
+        return """你是一个专业的硬件工程师，擅长分析电路原理图。请仔细分析这张电路图。
 
-请仔细分析这张电路图，提供完整的分析报告：
+**输出要求**：
+1. 必须输出有效的 JSON 格式
+2. 使用英文键名
+3. 确保所有字段都有值
 
-## 1. 元件列表
-识别所有元件，包括编号、型号、参数、数量。
+**分析内容**：
 
-## 2. 拓扑结构
-描述电路的拓扑结构和信号流向。
+## 1. 元件列表 (components)
+每个元件包含：ref, type, value, quantity, pins
 
-## 3. 电路功能
-描述电路的功能和应用场景。
+## 2. 拓扑结构 (topology)
+描述电源路径、信号路径、接地方式、模块划分
 
-## 4. 关键节点
-标注电路中的关键节点。
+## 3. 电路功能 (function)
+包含 circuit_type, description, applications
 
-## 5. BOM 表
-生成物料清单。
+## 4. 关键节点 (key_nodes)
+列出重要测试点
 
-## 6. 错误检测
-检查常见错误：电源接地、芯片反接、去耦电容缺失等。
+## 5. BOM 表 (bom)
+物料清单：index, name, model, quantity, remarks
 
-请以 JSON 格式输出结果。"""
+## 6. 错误检测 (errors)
+检查常见错误：电源接地、芯片反接、去耦电容缺失、悬空引脚
+每个错误包含：type, severity, description, suggestion
+
+请严格按照 JSON 格式输出。"""
 
     async def _call_nvidia_api(self, prompt: str, image_base64: str, media_type: str) -> str:
         """调用 NVIDIA API（带重试机制）"""

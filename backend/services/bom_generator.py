@@ -24,33 +24,21 @@ class BOMGenerator:
     - 从电路图中提取元件信息
     - 生成标准 BOM 表格式
     - 支持导出 Excel/CSV
+    - 使用 NVIDIA GLM-4.7 API
     """
     
     def __init__(self):
         """初始化 BOM 生成器"""
         self.api_key = self._load_api_key()
-        self.api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
-        self.model = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+        self.api_base = os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1")
+        self.model = os.getenv("NVIDIA_MODEL", "z-ai/glm4.7")
     
     def _load_api_key(self) -> str:
-        """加载 Claude API Key"""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if api_key:
-            return api_key
-        
-        config_paths = [
-            Path(__file__).parent.parent.parent / ".claude-api.env",
-            Path.home() / ".openclaw" / "workspace" / "agents" / "main" / ".secrets" / "third-party-claude.env",
-        ]
-        
-        for path in config_paths:
-            if path.exists():
-                with open(path, "r") as f:
-                    for line in f:
-                        if line.startswith("ANTHROPIC_API_KEY="):
-                            return line.split("=", 1)[1].strip().strip('"')
-        
-        raise ValueError("未找到 Claude API Key")
+        """加载 NVIDIA API Key"""
+        api_key = os.getenv("NVIDIA_API_KEY")
+        if not api_key:
+            raise ValueError("未找到 NVIDIA API Key，请配置 NVIDIA_API_KEY 环境变量")
+        return api_key
     
     async def generate(self, file_content: bytes, content_type: str) -> List[Dict[str, Any]]:
         """
@@ -74,8 +62,8 @@ class BOMGenerator:
         # 构建 Prompt
         prompt = self._build_bom_prompt()
         
-        # 调用 Claude API
-        response = await self._call_claude_api(prompt, image_base64, media_type)
+        # 调用 NVIDIA API
+        response = await self._call_nvidia_api(prompt, image_base64, media_type)
         
         # 解析 BOM 表
         bom_list = self._parse_bom_response(response)
@@ -110,50 +98,49 @@ class BOMGenerator:
 
 只输出 JSON 数组，不要有其他文字说明。"""
 
-    async def _call_claude_api(self, prompt: str, image_base64: str, media_type: str) -> str:
-        """调用 Claude API"""
+    async def _call_nvidia_api(self, prompt: str, image_base64: str, media_type: str) -> str:
+        """调用 NVIDIA API（OpenAI 兼容格式）"""
         headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
         
+        # NVIDIA API 使用 OpenAI 兼容格式
         payload = {
             "model": self.model,
-            "max_tokens": 2048,
             "messages": [
                 {
                     "role": "user",
                     "content": [
                         {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": image_base64
-                            }
-                        },
-                        {
                             "type": "text",
                             "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{media_type};base64,{image_base64}"
+                            }
                         }
                     ]
                 }
-            ]
+            ],
+            "max_tokens": 2048,
+            "temperature": 0.7
         }
         
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{self.api_base}/v1/messages",
+                f"{self.api_base}/chat/completions",
                 headers=headers,
                 json=payload
             )
             
             if response.status_code != 200:
-                raise Exception(f"Claude API 调用失败: {response.status_code}")
+                raise Exception(f"NVIDIA API 调用失败: {response.status_code} - {response.text}")
             
             data = response.json()
-            return data["content"][0]["text"]
+            return data["choices"][0]["message"]["content"]
     
     def _parse_bom_response(self, response: str) -> List[Dict[str, Any]]:
         """解析 BOM 响应"""

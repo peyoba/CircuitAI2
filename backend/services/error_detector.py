@@ -31,28 +31,15 @@ class ErrorDetector:
     def __init__(self):
         """初始化错误检测器"""
         self.api_key = self._load_api_key()
-        self.api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
-        self.model = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+        self.api_base = os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1")
+        self.model = os.getenv("NVIDIA_MODEL", "z-ai/glm4.7")
     
     def _load_api_key(self) -> str:
-        """加载 Claude API Key"""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if api_key:
-            return api_key
-        
-        config_paths = [
-            Path(__file__).parent.parent.parent / ".claude-api.env",
-            Path.home() / ".openclaw" / "workspace" / "agents" / "main" / ".secrets" / "third-party-claude.env",
-        ]
-        
-        for path in config_paths:
-            if path.exists():
-                with open(path, "r") as f:
-                    for line in f:
-                        if line.startswith("ANTHROPIC_API_KEY="):
-                            return line.split("=", 1)[1].strip().strip('"')
-        
-        raise ValueError("未找到 Claude API Key")
+        """加载 NVIDIA API Key"""
+        api_key = os.getenv("NVIDIA_API_KEY")
+        if not api_key:
+            raise ValueError("未找到 NVIDIA API Key，请配置 NVIDIA_API_KEY 环境变量")
+        return api_key
     
     async def detect(self, file_content: bytes, content_type: str) -> List[Dict[str, Any]]:
         """

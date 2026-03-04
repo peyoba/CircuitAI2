@@ -1,68 +1,105 @@
 import React, { useState } from 'react'
-import CircuitUploader from './components/CircuitUploader'
-import AnalysisResult from './components/AnalysisResult'
+import axios from 'axios'
 import './App.css'
 
+const API_BASE = 'http://localhost:8000'
+
 function App() {
-  const [analysisResult, setAnalysisResult] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [file, setFile] = useState(null)
+  const [preview, setPreview] = useState(null)
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const handleAnalysisComplete = (result) => {
-    setAnalysisResult(result)
-    setIsLoading(false)
-    setError(null)
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0]
+    if (selectedFile) {
+      setFile(selectedFile)
+      setPreview(URL.createObjectURL(selectedFile))
+      setResult(null)
+      setError(null)
+    }
   }
 
-  const handleAnalysisError = (err) => {
-    setError(err.message || '分析失败，请重试')
-    setIsLoading(false)
-  }
+  const handleUpload = async () => {
+    if (!file) {
+      setError('请先选择图片')
+      return
+    }
 
-  const handleStartAnalysis = () => {
-    setIsLoading(true)
+    setLoading(true)
     setError(null)
-    setAnalysisResult(null)
-  }
 
-  const handleReset = () => {
-    setAnalysisResult(null)
-    setError(null)
-    setIsLoading(false)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await axios.post(`${API_BASE}/api/v1/full-analysis`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000
+      })
+      setResult(response.data)
+    } catch (err) {
+      setError(err.response?.data?.detail || '分析失败，请重试')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="app">
       <header className="header">
         <h1>⚡ CircuitAI</h1>
-        <p>AI驱动的电路图识别、解释与错误检测工具</p>
+        <p>AI 电路图辅助工具</p>
       </header>
 
-      <main className="main-content">
-        {!analysisResult ? (
-          <CircuitUploader
-            onAnalysisComplete={handleAnalysisComplete}
-            onAnalysisError={handleAnalysisError}
-            onStartAnalysis={handleStartAnalysis}
-            isLoading={isLoading}
-          />
-        ) : (
-          <AnalysisResult
-            result={analysisResult}
-            onReset={handleReset}
-          />
-        )}
+      <main className="main">
+        <section className="upload-section">
+          <h2>上传电路图</h2>
+          <input type="file" accept="image/*" onChange={handleFileChange} />
+          {preview && <img src={preview} alt="预览" className="preview" />}
+          <button onClick={handleUpload} disabled={loading || !file}>
+            {loading ? '分析中...' : '开始分析'}
+          </button>
+        </section>
 
-        {error && (
-          <div className="error">
-            <p>❌ {error}</p>
-          </div>
+        {error && <div className="error">{error}</div>}
+
+        {result && (
+          <section className="result-section">
+            <h2>分析结果</h2>
+            
+            <div className="result-block">
+              <h3>📋 元件列表 ({result.components?.length || 0})</h3>
+              <pre>{JSON.stringify(result.components, null, 2)}</pre>
+            </div>
+
+            <div className="result-block">
+              <h3>🔌 拓扑结构</h3>
+              <p>{result.topology}</p>
+            </div>
+
+            <div className="result-block">
+              <h3>⚡ 电路功能</h3>
+              <p>{result.function}</p>
+            </div>
+
+            {result.bom && result.bom.length > 0 && (
+              <div className="result-block">
+                <h3>📦 BOM 表 ({result.bom.length})</h3>
+                <pre>{JSON.stringify(result.bom, null, 2)}</pre>
+              </div>
+            )}
+
+            {result.errors && result.errors.length > 0 && (
+              <div className="result-block errors">
+                <h3>⚠️ 检测到问题 ({result.errors.length})</h3>
+                <pre>{JSON.stringify(result.errors, null, 2)}</pre>
+              </div>
+            )}
+          </section>
         )}
       </main>
-
-      <footer className="footer">
-        <p>CircuitAI © 2026 | 专注于电路图辅助分析</p>
-      </footer>
     </div>
   )
 }

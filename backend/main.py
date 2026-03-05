@@ -14,7 +14,7 @@ AI 电路图辅助工具 - FastAPI 后端服务
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 import os
 from datetime import datetime
 
@@ -47,8 +47,8 @@ app.add_middleware(
 class AnalysisResult(BaseModel):
     """电路图分析结果模型"""
     components: List[dict]  # 元件列表
-    topology: str  # 拓扑结构说明
-    function: str  # 电路功能解释
+    topology: Any  # 拓扑结构说明（可能是字符串或对象）
+    function: Any  # 电路功能解释（可能是字符串或对象）
     key_nodes: List[dict]  # 关键节点
     errors: Optional[List[dict]] = None  # 错误列表（可选）
     bom: Optional[List[dict]] = None  # BOM 表（可选）

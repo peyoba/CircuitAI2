@@ -19,7 +19,7 @@ import os
 from datetime import datetime
 
 # 导入内部模块
-from services.circuit_analyzer import CircuitAnalyzer
+from services.nvidia_analyzer import NVIDIAAnalyzer
 from services.bom_generator import BOMGenerator
 from services.error_detector import ErrorDetector
 
@@ -122,7 +122,7 @@ async def analyze_circuit(file: UploadFile = File(...)):
     file_content = await file.read()
     
     # 调用分析服务
-    analyzer = CircuitAnalyzer()
+    analyzer = NVIDIAAnalyzer()
     result = await analyzer.analyze(file_content, file.content_type)
     
     return result
@@ -225,7 +225,7 @@ async def full_analysis(file: UploadFile = File(...)):
     file_content = await file.read()
     
     # 调用完整分析服务
-    analyzer = CircuitAnalyzer()
+    analyzer = NVIDIAAnalyzer()
     result = await analyzer.full_analysis(file_content, file.content_type)
     
     return result

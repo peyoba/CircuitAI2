@@ -254,7 +254,10 @@ class NVIDIAAnalyzer:
                     )
                     if response.status_code == 200:
                         data = response.json()
-                        return data["choices"][0]["message"]["content"]
+                        msg = data["choices"][0]["message"]
+                        # 有些模型把内容放在 reasoning_content 里
+                        content = msg.get("content") or msg.get("reasoning_content") or ""
+                        return content
                     elif response.status_code >= 500 and attempt < max_retries - 1:
                         await asyncio.sleep(5)
                         continue

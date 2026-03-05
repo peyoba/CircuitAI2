@@ -117,36 +117,70 @@ class NVIDIAAnalyzer:
 ```"""
 
     def _build_full_analysis_prompt(self) -> str:
-        """构建完整分析 Prompt（优化版）"""
+        """构建完整分析 Prompt（中英双语版）"""
         return """你是一个专业的硬件工程师，擅长分析电路原理图。请仔细分析这张电路图。
 
-**输出要求**：
+**重要要求**：
 1. 必须输出有效的 JSON 格式
-2. 使用英文键名
+2. 所有描述性文字使用**中英双语**格式："中文 / English"
 3. 确保所有字段都有值
 
 **分析内容**：
 
 ## 1. 元件列表 (components)
-每个元件包含：ref, type, value, quantity, pins
+每个元件包含：
+- ref: 编号（如 R1, C1, U1）
+- type: 类型，中英双语（如 "电阻 / Resistor"）
+- value: 参数值（如 10K, 100nF）
+- quantity: 数量
+- pins: 引脚连接描述，中英双语
 
 ## 2. 拓扑结构 (topology)
-描述电源路径、信号路径、接地方式、模块划分
+用对象描述，每个值中英双语：
+- power_path: 电源路径
+- signal_path: 信号路径
+- grounding: 接地方式
+- modules: 模块划分
 
 ## 3. 电路功能 (function)
-包含 circuit_type, description, applications
+- circuit_type: 电路类型，中英双语（如 "稳压电源 / Voltage Regulator"）
+- description: 功能描述，中英双语
+- applications: 典型应用，中英双语
 
 ## 4. 关键节点 (key_nodes)
-列出重要测试点
+列表，每个节点为对象：
+- name: 节点名称
+- description: 功能描述，中英双语
 
 ## 5. BOM 表 (bom)
-物料清单：index, name, model, quantity, remarks
+物料清单：
+- index: 序号
+- name: 元件名称，中英双语（如 "电阻 / Resistor"）
+- model: 型号/参数
+- quantity: 数量
+- remarks: 备注，中英双语
 
 ## 6. 错误检测 (errors)
 检查常见错误：电源接地、芯片反接、去耦电容缺失、悬空引脚
-每个错误包含：type, severity, description, suggestion
+每个错误包含：
+- type: 错误类型
+- severity: 严重程度（High/Medium/Low）
+- description: 描述，中英双语
+- suggestion: 建议，中英双语
 
-请严格按照 JSON 格式输出。"""
+**输出示例**：
+```json
+{
+  "components": [{"ref": "R1", "type": "电阻 / Resistor", "value": "10K", "quantity": 1, "pins": "连接VCC到GPIO1 / Connects VCC to GPIO1"}],
+  "topology": {"power_path": "直流输入经滤波后到稳压器 / DC input through filter to regulator", "signal_path": "无信号路径 / No signal path", "grounding": "共地配置 / Common ground", "modules": "输入滤波、稳压、输出滤波 / Input filter, regulation, output filter"},
+  "function": {"circuit_type": "线性稳压电源 / Linear Voltage Regulator", "description": "将输入电压转换为稳定的输出电压 / Converts input voltage to stable output", "applications": "为微控制器供电 / Powering microcontrollers"},
+  "key_nodes": [{"name": "VIN", "description": "电源输入 / Power input"}],
+  "bom": [{"index": 1, "name": "电阻 / Resistor", "model": "10K 0603", "quantity": 1, "remarks": "上拉电阻 / Pull-up resistor"}],
+  "errors": [{"type": "bypass_capacitor_missing", "severity": "Medium", "description": "芯片旁缺少去耦电容 / Missing bypass capacitor near IC", "suggestion": "在电源引脚旁放置0.1μF电容 / Place 0.1μF cap near power pins"}]
+}
+```
+
+请严格按照 JSON 格式输出，不要输出其他内容。"""
 
     async def _call_nvidia_api(self, prompt: str, image_base64: str, media_type: str) -> str:
         """调用 API（自动检测 OpenAI 或 Anthropic 格式）"""

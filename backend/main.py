@@ -201,34 +201,41 @@ async def detect_errors(file: UploadFile = File(...)):
 async def full_analysis(file: UploadFile = File(...)):
     """
     完整分析（识别 + BOM + 错误检测）
-    
-    功能：
-    - 电路图识别与解释
-    - BOM 表生成
-    - 错误检测
-    
-    参数：
-    - file: 上传的电路图文件 (PNG/JPG/PDF)
-    
-    返回：
-    - AnalysisResult: 完整分析结果
     """
-    # 验证文件类型
-    allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
-    if file.content_type not in allowed_types:
+    import logging
+    logger = logging.getLogger("circuitai")
+    
+    logger.info(f"收到文件: {file.filename}, 类型: {file.content_type}, 大小: {file.size}")
+    
+    # 验证文件类型（放宽限制）
+    allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif", "application/pdf", "application/octet-stream"]
+    content_type = file.content_type or "application/octet-stream"
+    
+    # 如果content_type不在列表中，尝试从文件名推断
+    if content_type not in allowed_types:
+        ext = (file.filename or "").lower().split(".")[-1] if file.filename else ""
+        ext_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "pdf": "application/pdf"}
+        content_type = ext_map.get(ext, content_type)
+    
+    if content_type not in allowed_types:
         raise HTTPException(
             status_code=400,
-            detail=f"不支持的文件类型: {file.content_type}"
+            detail=f"不支持的文件类型: {file.content_type}。支持: PNG, JPG, WebP, PDF"
         )
     
     # 读取文件内容
     file_content = await file.read()
+    logger.info(f"文件读取完成, 大小: {len(file_content)} bytes")
     
-    # 调用完整分析服务
-    analyzer = NVIDIAAnalyzer()
-    result = await analyzer.full_analysis(file_content, file.content_type)
-    
-    return result
+    try:
+        # 调用完整分析服务
+        analyzer = NVIDIAAnalyzer()
+        result = await analyzer.full_analysis(file_content, content_type)
+        logger.info(f"分析完成: {list(result.keys()) if isinstance(result, dict) else type(result)}")
+        return result
+    except Exception as e:
+        logger.error(f"分析失败: {e}")
+        raise HTTPException(status_code=500, detail=f"分析失败: {str(e)}")
 
 
 # ==================== 启动配置 ====================

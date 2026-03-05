@@ -46,12 +46,12 @@ app.add_middleware(
 
 class AnalysisResult(BaseModel):
     """电路图分析结果模型"""
-    components: List[dict]  # 元件列表
-    topology: Any  # 拓扑结构说明（可能是字符串或对象）
-    function: Any  # 电路功能解释（可能是字符串或对象）
-    key_nodes: List[dict]  # 关键节点
-    errors: Optional[List[dict]] = None  # 错误列表（可选）
-    bom: Optional[List[dict]] = None  # BOM 表（可选）
+    components: Any = None  # 元件列表
+    topology: Any = None  # 拓扑结构
+    function: Any = None  # 电路功能
+    key_nodes: Any = None  # 关键节点
+    errors: Any = None  # 错误列表
+    bom: Any = None  # BOM 表
 
 
 class BOMItem(BaseModel):

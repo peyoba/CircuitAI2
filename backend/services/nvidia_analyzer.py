@@ -149,7 +149,75 @@ class NVIDIAAnalyzer:
 请严格按照 JSON 格式输出。"""
 
     async def _call_nvidia_api(self, prompt: str, image_base64: str, media_type: str) -> str:
-        """调用 NVIDIA API（带重试机制）"""
+        """调用 API（自动检测 OpenAI 或 Anthropic 格式）"""
+        
+        # 检测是否使用 Anthropic Messages 格式
+        use_anthropic = os.getenv("API_FORMAT", "").lower() == "anthropic" or "anyrouter" in self.api_base
+        
+        if use_anthropic:
+            return await self._call_anthropic_api(prompt, image_base64, media_type)
+        else:
+            return await self._call_openai_api(prompt, image_base64, media_type)
+    
+    async def _call_anthropic_api(self, prompt: str, image_base64: str, media_type: str) -> str:
+        """调用 Anthropic Messages API"""
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": self.model,
+            "max_tokens": 4096,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": image_base64
+                            }
+                        },
+                        {"type": "text", "text": prompt}
+                    ]
+                }
+            ]
+        }
+        
+        max_retries = 3
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            for attempt in range(max_retries):
+                try:
+                    response = await client.post(
+                        f"{self.api_base}/v1/messages",
+                        headers=headers,
+                        json=payload
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        # Anthropic 格式: data.content[0].text
+                        content = data.get("content", [])
+                        for block in content:
+                            if block.get("type") == "text":
+                                return block.get("text", "")
+                        return str(content)
+                    elif response.status_code >= 500 and attempt < max_retries - 1:
+                        await asyncio.sleep(5)
+                        continue
+                    else:
+                        raise Exception(f"Anthropic API 调用失败: {response.status_code} - {response.text[:200]}")
+                except httpx.ReadTimeout:
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(10)
+                        continue
+                    raise Exception(f"Anthropic API 超时，已重试 {max_retries} 次")
+    
+    async def _call_openai_api(self, prompt: str, image_base64: str, media_type: str) -> str:
+        """调用 OpenAI 兼容 API"""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -191,13 +259,12 @@ class NVIDIAAnalyzer:
                         await asyncio.sleep(5)
                         continue
                     else:
-                        raise Exception(f"NVIDIA API 调用失败: {response.status_code}")
+                        raise Exception(f"API 调用失败: {response.status_code} - {response.text[:200]}")
                 except httpx.ReadTimeout:
                     if attempt < max_retries - 1:
                         await asyncio.sleep(10)
                         continue
-                    raise Exception(f"NVIDIA API 超时，已重试 {max_retries} 次")
-                except Exception as e:
+                    raise Exception(f"API 超时，已重试 {max_retries} 次")
                     if attempt < max_retries - 1:
                         await asyncio.sleep(5)
                         continue

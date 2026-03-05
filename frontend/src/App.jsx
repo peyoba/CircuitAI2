@@ -4,24 +4,164 @@ import './App.css'
 
 const API_BASE = ''
 
-// 安全渲染：对象转字符串，字符串直接显示
-function RenderValue({ value }) {
-  if (value === null || value === undefined) return null
-  if (typeof value === 'string') return <p>{value}</p>
-  if (typeof value === 'number') return <p>{value}</p>
-  if (Array.isArray(value)) {
-    return <ul>{value.map((item, i) => (
-      <li key={i}>{typeof item === 'object' ? JSON.stringify(item, null, 2) : String(item)}</li>
-    ))}</ul>
-  }
-  if (typeof value === 'object') {
-    return <ul>{Object.entries(value).map(([k, v]) => (
-      <li key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : String(v)}</li>
-    ))}</ul>
-  }
-  return <p>{String(value)}</p>
+/* ========== 元件列表表格 ========== */
+function ComponentsTable({ components }) {
+  if (!components || !components.length) return <p className="empty">未识别到元件</p>
+  return (
+    <table className="data-table">
+      <thead>
+        <tr>
+          <th>编号</th>
+          <th>类型</th>
+          <th>参数/型号</th>
+          <th>数量</th>
+          <th>引脚/说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        {components.map((c, i) => (
+          <tr key={i}>
+            <td className="ref">{c.ref || c.name || '-'}</td>
+            <td><span className="type-badge">{c.type || '-'}</span></td>
+            <td className="value">{c.value || c.model || '-'}</td>
+            <td className="center">{c.quantity || 1}</td>
+            <td className="desc">{c.pins || c.remarks || '-'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 }
 
+/* ========== 拓扑结构卡片 ========== */
+function TopologyCard({ topology }) {
+  if (!topology) return null
+  if (typeof topology === 'string') return <p className="text-content">{topology}</p>
+  
+  const labels = {
+    power_path: '⚡ 电源路径',
+    signal_path: '📡 信号路径',
+    grounding: '🔌 接地方式',
+    ground_method: '🔌 接地方式',
+    modules: '📦 模块划分',
+    module_division: '📦 模块划分'
+  }
+  
+  return (
+    <div className="info-cards">
+      {Object.entries(topology).map(([k, v]) => (
+        <div key={k} className="info-card">
+          <div className="info-label">{labels[k] || k}</div>
+          <div className="info-value">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ========== 电路功能卡片 ========== */
+function FunctionCard({ func }) {
+  if (!func) return null
+  if (typeof func === 'string') return <p className="text-content">{func}</p>
+  
+  return (
+    <div className="function-card">
+      {func.circuit_type && (
+        <div className="func-type">
+          <span className="func-icon">🎯</span>
+          <span className="func-type-text">{func.circuit_type}</span>
+        </div>
+      )}
+      {func.description && <p className="func-desc">{func.description}</p>}
+      {func.applications && (
+        <div className="func-app">
+          <strong>💡 典型应用：</strong>{func.applications}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ========== BOM 表格 ========== */
+function BOMTable({ bom }) {
+  if (!bom || !bom.length) return null
+  return (
+    <table className="data-table bom-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>元件名称</th>
+          <th>型号/参数</th>
+          <th>数量</th>
+          <th>备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bom.map((item, i) => (
+          <tr key={i}>
+            <td className="center">{item.index || i + 1}</td>
+            <td>{item.name || '-'}</td>
+            <td className="value">{item.model || item.value || '-'}</td>
+            <td className="center">{item.quantity || '-'}</td>
+            <td className="desc">{item.remarks || '-'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+/* ========== 错误检测卡片 ========== */
+function ErrorsList({ errors }) {
+  if (!errors || !errors.length) return null
+  
+  const severityColors = {
+    High: '#ef4444', high: '#ef4444',
+    Medium: '#f59e0b', medium: '#f59e0b',
+    Low: '#3b82f6', low: '#3b82f6'
+  }
+  
+  return (
+    <div className="errors-list">
+      {errors.map((err, i) => {
+        const severity = err.severity || 'Medium'
+        const color = severityColors[severity] || '#f59e0b'
+        return (
+          <div key={i} className="error-card" style={{ borderLeftColor: color }}>
+            <div className="error-header">
+              <span className="error-severity" style={{ background: color }}>
+                {severity}
+              </span>
+              <span className="error-type">{err.type || '未知问题'}</span>
+            </div>
+            <p className="error-desc">{err.description || ''}</p>
+            {err.suggestion && (
+              <div className="error-suggestion">
+                <strong>💡 建议：</strong>{err.suggestion}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ========== 关键节点 ========== */
+function KeyNodes({ nodes }) {
+  if (!nodes || !nodes.length) return null
+  return (
+    <div className="key-nodes">
+      {nodes.map((node, i) => (
+        <span key={i} className="node-tag">
+          {typeof node === 'object' ? (node.name || JSON.stringify(node)) : String(node)}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/* ========== 主应用 ========== */
 function App() {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -39,12 +179,19 @@ function App() {
     }
   }
 
-  const handleUpload = async () => {
-    if (!file) {
-      setError('请先选择图片')
-      return
+  const handleDrop = (e) => {
+    e.preventDefault()
+    const droppedFile = e.dataTransfer.files[0]
+    if (droppedFile && droppedFile.type.startsWith('image/')) {
+      setFile(droppedFile)
+      setPreview(URL.createObjectURL(droppedFile))
+      setResult(null)
+      setError(null)
     }
+  }
 
+  const handleUpload = async () => {
+    if (!file) { setError('请先选择图片'); return }
     setLoading(true)
     setError(null)
 
@@ -54,70 +201,128 @@ function App() {
     try {
       const response = await axios.post(`${API_BASE}/api/v1/full-analysis`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 180000
+        timeout: 300000
       })
       setResult(response.data)
     } catch (err) {
-      setError(err.response?.data?.detail || '分析失败，请重试')
+      const detail = err.response?.data?.detail || err.message || '分析失败，请重试'
+      setError(typeof detail === 'object' ? JSON.stringify(detail) : detail)
     } finally {
       setLoading(false)
     }
   }
 
+  const errorCount = result?.errors?.length || 0
+  const componentCount = result?.components?.length || 0
+  const bomCount = result?.bom?.length || 0
+
   return (
     <div className="app">
       <header className="header">
         <h1>⚡ CircuitAI</h1>
-        <p>AI 电路图辅助工具</p>
+        <p className="subtitle">AI 智能电路图分析工具</p>
       </header>
 
       <main className="main">
-        <section className="upload-section">
-          <h2>上传电路图</h2>
-          <input type="file" accept="image/*" onChange={handleFileChange} />
-          {preview && <img src={preview} alt="预览" className="preview" />}
-          <button onClick={handleUpload} disabled={loading || !file}>
-            {loading ? '分析中...' : '开始分析'}
-          </button>
+        {/* 上传区域 */}
+        <section 
+          className={`upload-zone ${preview ? 'has-file' : ''}`}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+        >
+          {!preview ? (
+            <div className="upload-placeholder">
+              <div className="upload-icon">📁</div>
+              <p>拖拽电路图到这里，或点击选择文件</p>
+              <input type="file" accept="image/*" onChange={handleFileChange} id="fileInput" />
+              <label htmlFor="fileInput" className="upload-btn">选择文件</label>
+            </div>
+          ) : (
+            <div className="upload-preview">
+              <img src={preview} alt="电路图预览" className="preview-img" />
+              <div className="upload-actions">
+                <button className="btn-primary" onClick={handleUpload} disabled={loading}>
+                  {loading ? (
+                    <><span className="spinner"></span> AI 分析中，请稍候...</>
+                  ) : '🔍 开始分析'}
+                </button>
+                <button className="btn-secondary" onClick={() => { setFile(null); setPreview(null); setResult(null) }}>
+                  重新选择
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
-        {error && <div className="error">{error}</div>}
+        {error && <div className="error-banner">❌ {error}</div>}
 
+        {/* 分析结果 */}
         {result && (
-          <section className="result-section">
-            <h2>分析结果</h2>
-            
-            <div className="result-block">
-              <h3>📋 元件列表 ({result.components?.length || 0})</h3>
-              <pre>{JSON.stringify(result.components, null, 2)}</pre>
+          <div className="results">
+            {/* 概览统计 */}
+            <div className="stats-bar">
+              <div className="stat-item">
+                <span className="stat-num">{componentCount}</span>
+                <span className="stat-label">元件识别</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-num">{bomCount}</span>
+                <span className="stat-label">BOM 物料</span>
+              </div>
+              <div className={`stat-item ${errorCount > 0 ? 'stat-warn' : 'stat-ok'}`}>
+                <span className="stat-num">{errorCount}</span>
+                <span className="stat-label">{errorCount > 0 ? '潜在问题' : '无问题'}</span>
+              </div>
             </div>
 
-            <div className="result-block">
-              <h3>🔌 拓扑结构</h3>
-              <RenderValue value={result.topology} />
-            </div>
-
-            <div className="result-block">
+            {/* 电路功能 */}
+            <section className="result-card">
               <h3>⚡ 电路功能</h3>
-              <RenderValue value={result.function} />
-            </div>
+              <FunctionCard func={result.function} />
+            </section>
 
-            {result.bom && result.bom.length > 0 && (
-              <div className="result-block">
-                <h3>📦 BOM 表 ({result.bom.length})</h3>
-                <pre>{JSON.stringify(result.bom, null, 2)}</pre>
-              </div>
+            {/* 元件列表 */}
+            <section className="result-card">
+              <h3>📋 元件列表 <span className="count-badge">{componentCount}</span></h3>
+              <ComponentsTable components={result.components} />
+            </section>
+
+            {/* 拓扑结构 */}
+            <section className="result-card">
+              <h3>🔌 拓扑结构</h3>
+              <TopologyCard topology={result.topology} />
+            </section>
+
+            {/* 关键节点 */}
+            {result.key_nodes && result.key_nodes.length > 0 && (
+              <section className="result-card">
+                <h3>📍 关键节点</h3>
+                <KeyNodes nodes={result.key_nodes} />
+              </section>
             )}
 
-            {result.errors && result.errors.length > 0 && (
-              <div className="result-block errors">
-                <h3>⚠️ 检测到问题 ({result.errors.length})</h3>
-                <pre>{JSON.stringify(result.errors, null, 2)}</pre>
-              </div>
+            {/* BOM 表 */}
+            {bomCount > 0 && (
+              <section className="result-card">
+                <h3>📦 BOM 物料清单 <span className="count-badge">{bomCount}</span></h3>
+                <BOMTable bom={result.bom} />
+              </section>
             )}
-          </section>
+
+            {/* 错误检测 */}
+            {errorCount > 0 && (
+              <section className="result-card">
+                <h3>⚠️ 潜在问题 <span className="count-badge warn">{errorCount}</span></h3>
+                <ErrorsList errors={result.errors} />
+              </section>
+            )}
+          </div>
         )}
       </main>
+
+      <footer className="footer">
+        <p>CircuitAI © 2026 · Powered by AI</p>
+      </footer>
     </div>
   )
 }

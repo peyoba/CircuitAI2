@@ -4,6 +4,24 @@ import './App.css'
 
 const API_BASE = ''
 
+// 安全渲染：对象转字符串，字符串直接显示
+function RenderValue({ value }) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string') return <p>{value}</p>
+  if (typeof value === 'number') return <p>{value}</p>
+  if (Array.isArray(value)) {
+    return <ul>{value.map((item, i) => (
+      <li key={i}>{typeof item === 'object' ? JSON.stringify(item, null, 2) : String(item)}</li>
+    ))}</ul>
+  }
+  if (typeof value === 'object') {
+    return <ul>{Object.entries(value).map(([k, v]) => (
+      <li key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : String(v)}</li>
+    ))}</ul>
+  }
+  return <p>{String(value)}</p>
+}
+
 function App() {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -76,12 +94,12 @@ function App() {
 
             <div className="result-block">
               <h3>🔌 拓扑结构</h3>
-              <p>{result.topology}</p>
+              <RenderValue value={result.topology} />
             </div>
 
             <div className="result-block">
               <h3>⚡ 电路功能</h3>
-              <p>{result.function}</p>
+              <RenderValue value={result.function} />
             </div>
 
             {result.bom && result.bom.length > 0 && (

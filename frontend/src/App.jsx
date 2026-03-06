@@ -169,26 +169,45 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // 设置文件的通用方法
+  const setImageFile = (f) => {
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+    setResult(null)
+    setError(null)
+  }
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
-    if (selectedFile) {
-      setFile(selectedFile)
-      setPreview(URL.createObjectURL(selectedFile))
-      setResult(null)
-      setError(null)
-    }
+    if (selectedFile) setImageFile(selectedFile)
   }
 
   const handleDrop = (e) => {
     e.preventDefault()
     const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile && droppedFile.type.startsWith('image/')) {
-      setFile(droppedFile)
-      setPreview(URL.createObjectURL(droppedFile))
-      setResult(null)
-      setError(null)
-    }
+    if (droppedFile && droppedFile.type.startsWith('image/')) setImageFile(droppedFile)
   }
+
+  // 全局粘贴监听：Ctrl+V 直接粘贴截图
+  React.useEffect(() => {
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault()
+          const blob = item.getAsFile()
+          if (blob) {
+            const f = new File([blob], `screenshot_${Date.now()}.png`, { type: blob.type })
+            setImageFile(f)
+          }
+          break
+        }
+      }
+    }
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [])
 
   const handleUpload = async () => {
     if (!file) { setError('请先选择图片'); return }
@@ -233,7 +252,7 @@ function App() {
           {!preview ? (
             <div className="upload-placeholder">
               <div className="upload-icon">📁</div>
-              <p>拖拽电路图到这里，或点击选择文件</p>
+              <p>拖拽电路图到这里 / Ctrl+V 粘贴截图 / 点击选择文件</p>
               <input type="file" accept="image/*" onChange={handleFileChange} id="fileInput" />
               <label htmlFor="fileInput" className="upload-btn">选择文件</label>
             </div>

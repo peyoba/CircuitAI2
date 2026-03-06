@@ -221,11 +221,28 @@ function App() {
     formData.append('file', file)
 
     try {
-      const response = await axios.post(`${API_BASE}/api/v1/full-analysis`, formData, {
+      // 异步模式：先提交，再轮询结果
+      const submitRes = await axios.post(`${API_BASE}/api/v1/analyze-async`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 300000
+        timeout: 30000
       })
-      setResult(response.data)
+      const taskId = submitRes.data.task_id
+      
+      // 轮询结果
+      while (true) {
+        await new Promise(r => setTimeout(r, 3000)) // 每3秒查一次
+        const pollRes = await axios.get(`${API_BASE}/api/v1/task/${taskId}`, { timeout: 10000 })
+        const task = pollRes.data
+        
+        if (task.status === 'done') {
+          setResult(task.result)
+          break
+        } else if (task.status === 'error') {
+          setError(task.error || '分析失败')
+          break
+        }
+        // 还在处理中，继续等
+      }
     } catch (err) {
       const detail = err.response?.data?.detail || err.message || '分析失败，请重试'
       setError(typeof detail === 'object' ? JSON.stringify(detail) : detail)

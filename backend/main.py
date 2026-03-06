@@ -15,6 +15,14 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Any
+
+import uuid
+import threading
+import time
+
+# 任务存储
+tasks = {}
+
 import os
 from datetime import datetime
 
@@ -236,6 +244,62 @@ async def full_analysis(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"分析失败: {e}")
         raise HTTPException(status_code=500, detail=f"分析失败: {str(e)}")
+
+
+
+
+# ==================== 异步分析 API ====================
+
+@app.post("/api/v1/analyze-async")
+async def analyze_async(file: UploadFile = File(...)):
+    """异步分析：立即返回任务ID，后台处理"""
+    import logging
+    logger = logging.getLogger("circuitai")
+    
+    content_type = file.content_type or "application/octet-stream"
+    ext = (file.filename or "").lower().split(".")[-1] if file.filename else ""
+    ext_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+    if content_type == "application/octet-stream" and ext in ext_map:
+        content_type = ext_map[ext]
+    
+    file_content = await file.read()
+    task_id = str(uuid.uuid4())[:8]
+    tasks[task_id] = {"status": "processing", "progress": "AI 正在分析电路图...", "result": None, "created": time.time()}
+    
+    def run_analysis():
+        import asyncio
+        loop = asyncio.new_event_loop()
+        try:
+            analyzer = NVIDIAAnalyzer()
+            result = loop.run_until_complete(analyzer.full_analysis(file_content, content_type))
+            tasks[task_id] = {"status": "done", "result": result, "created": tasks[task_id]["created"]}
+        except Exception as e:
+            logger.error(f"分析失败: {e}")
+            tasks[task_id] = {"status": "error", "error": str(e), "created": tasks[task_id]["created"]}
+        finally:
+            loop.close()
+    
+    thread = threading.Thread(target=run_analysis, daemon=True)
+    thread.start()
+    
+    return {"task_id": task_id, "status": "processing"}
+
+
+@app.get("/api/v1/task/{task_id}")
+async def get_task(task_id: str):
+    """查询任务状态"""
+    if task_id not in tasks:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    
+    task = tasks[task_id]
+    
+    # 清理超过10分钟的旧任务
+    now = time.time()
+    expired = [k for k, v in tasks.items() if now - v.get("created", 0) > 600]
+    for k in expired:
+        del tasks[k]
+    
+    return task
 
 
 # ==================== 启动配置 ====================

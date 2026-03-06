@@ -167,6 +167,7 @@ function App() {
   const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadingTime, setLoadingTime] = useState(0)
   const [error, setError] = useState(null)
 
   // 设置文件的通用方法
@@ -213,6 +214,8 @@ function App() {
     if (!file) { setError('请先选择图片'); return }
     setLoading(true)
     setError(null)
+    setLoadingTime(0)
+    const timer = setInterval(() => setLoadingTime(t => t + 1), 1000)
 
     const formData = new FormData()
     formData.append('file', file)
@@ -227,6 +230,7 @@ function App() {
       const detail = err.response?.data?.detail || err.message || '分析失败，请重试'
       setError(typeof detail === 'object' ? JSON.stringify(detail) : detail)
     } finally {
+      clearInterval(timer)
       setLoading(false)
     }
   }
@@ -262,7 +266,7 @@ function App() {
               <div className="upload-actions">
                 <button className="btn-primary" onClick={handleUpload} disabled={loading}>
                   {loading ? (
-                    <><span className="spinner"></span> AI 分析中，请稍候...</>
+                    <><span className="spinner"></span> AI 分析中 {loadingTime}s（请耐心等待1-2分钟）</>
                   ) : '🔍 开始分析'}
                 </button>
                 <button className="btn-secondary" onClick={() => { setFile(null); setPreview(null); setResult(null) }}>

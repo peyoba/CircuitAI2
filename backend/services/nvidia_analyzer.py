@@ -338,33 +338,66 @@ class NVIDIAAnalyzer:
         }
     
     def _parse_full_response(self, response: str) -> Dict[str, Any]:
-        """解析完整分析响应"""
-        if response is None:
-            return {
-                "components": [],
-                "topology": "API 返回为空",
-                "function": "",
-                "key_nodes": [],
-                "bom": [],
-                "errors": []
-            }
+        """解析完整分析响应（增强版，支持从思考内容中提取JSON）"""
+        empty = {
+            "components": [], "topology": "", "function": "",
+            "key_nodes": [], "bom": [], "errors": []
+        }
+        
+        if not response:
+            empty["topology"] = "API 返回为空"
+            return empty
+        
+        # 1. 直接解析
+        try:
+            data = json.loads(response)
+            if isinstance(data, dict) and ("components" in data or "topology" in data):
+                return data
+        except (json.JSONDecodeError, TypeError):
+            pass
+        
+        # 2. 提取 ```json ... ```
         json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
         if json_match:
             try:
-                return json.loads(json_match.group(1))
-            except json.JSONDecodeError:
+                data = json.loads(json_match.group(1))
+                if isinstance(data, dict):
+                    return data
+            except (json.JSONDecodeError, TypeError):
                 pass
         
-        try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            pass
+        # 3. 找包含 "components" 的最大JSON块
+        start_idx = response.find('{"components"')
+        if start_idx == -1:
+            start_idx = response.find('"components"')
+            if start_idx > 0:
+                # 回退找到前面的 {
+                for i in range(start_idx - 1, -1, -1):
+                    if response[i] == '{':
+                        start_idx = i
+                        break
         
-        return {
-            "components": [],
-            "topology": response,
-            "function": "",
-            "key_nodes": [],
-            "bom": [],
-            "errors": []
-        }
+        if start_idx >= 0:
+            # 从start_idx开始找平衡的大括号
+            depth = 0
+            end_idx = start_idx
+            for i in range(start_idx, len(response)):
+                if response[i] == '{':
+                    depth += 1
+                elif response[i] == '}':
+                    depth -= 1
+                if depth == 0:
+                    end_idx = i + 1
+                    break
+            
+            candidate = response[start_idx:end_idx]
+            try:
+                data = json.loads(candidate)
+                if isinstance(data, dict):
+                    return data
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        # 4. 失败，原文放topology
+        empty["topology"] = response[:3000]
+        return empty

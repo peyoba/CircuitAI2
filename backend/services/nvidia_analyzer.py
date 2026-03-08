@@ -289,9 +289,40 @@ class NVIDIAAnalyzer:
                     if response.status_code == 200:
                         data = response.json()
                         msg = data["choices"][0]["message"]
-                        # 有些模型把内容放在 reasoning_content 里
-                        content = msg.get("content") or msg.get("reasoning_content") or ""
-                        return content
+                        # GLM-4.5V: content可能为空，JSON在reasoning_content里
+                        content = msg.get("content") or ""
+                        reasoning = msg.get("reasoning_content") or ""
+                        # 优先用content，如果为空则从reasoning中提取
+                        if content.strip():
+                            return content
+                        # reasoning中可能混有思考文本+JSON，尝试提取JSON部分
+                        if reasoning:
+                            # 先找 ```json...```
+                            import re as _re
+                            jm = _re.search(r'```json\s*(.*?)\s*```', reasoning, _re.DOTALL)
+                            if jm:
+                                return jm.group(1)
+                            # 找第一个 { 到最后一个 } 之间包含components的JSON
+                            start = reasoning.find('{"components"')
+                            if start == -1:
+                                start = reasoning.find('"components"')
+                                if start > 0:
+                                    for i in range(start-1, -1, -1):
+                                        if reasoning[i] == '{':
+                                            start = i
+                                            break
+                            if start >= 0:
+                                depth = 0
+                                end = start
+                                for i in range(start, len(reasoning)):
+                                    if reasoning[i] == '{': depth += 1
+                                    elif reasoning[i] == '}': depth -= 1
+                                    if depth == 0:
+                                        end = i + 1
+                                        break
+                                return reasoning[start:end]
+                            return reasoning
+                        return content or reasoning
                     elif response.status_code >= 500 and attempt < max_retries - 1:
                         await asyncio.sleep(5)
                         continue
@@ -302,11 +333,12 @@ class NVIDIAAnalyzer:
                         await asyncio.sleep(10)
                         continue
                     raise Exception(f"API 超时，已重试 {max_retries} 次")
+                except Exception as e:
                     if attempt < max_retries - 1:
                         await asyncio.sleep(5)
                         continue
                     raise Exception(f"NVIDIA API 调用失败: {str(e)}")
-        
+
         raise Exception("NVIDIA API 调用失败")
     
     def _parse_analysis_response(self, response: str) -> Dict[str, Any]:

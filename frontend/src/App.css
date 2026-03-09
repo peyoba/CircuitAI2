@@ -47,6 +47,13 @@ body {
 }
 
 .upload-zone:hover { border-color: #667eea; background: #fafbff; }
+.upload-zone.drag-over {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.08);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  transform: scale(1.01);
+  transition: all 0.15s ease;
+}
 .upload-zone.has-file { border-style: solid; border-color: #667eea; }
 
 .upload-icon { font-size: 48px; margin-bottom: 16px; }

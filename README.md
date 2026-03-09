@@ -58,7 +58,7 @@ docker compose up -d --build
 
 ```bash
 cd backend && source venv/bin/activate && cd ..
-pytest tests/ -v  # 42 tests
+pytest tests/ -v  # 59 tests
 ```
 
 ## 文档

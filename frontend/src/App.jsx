@@ -22,6 +22,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB — 与后端一致
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf']
 
 function App() {
+  const [isDragOver, setIsDragOver] = useState(false)
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
@@ -74,8 +75,9 @@ function App() {
 
   const handleDrop = (e) => {
     e.preventDefault()
+    setIsDragOver(false)
     const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile && (droppedFile.type.startsWith('image/') || droppedFile.type === 'application/pdf')) setImageFile(droppedFile)
+    if (droppedFile) setImageFile(droppedFile) // setImageFile 内部校验类型和大小
   }
 
   // 全局粘贴监听：Ctrl+V 直接粘贴截图
@@ -217,8 +219,9 @@ function App() {
         <main className="main">
           {/* 上传区域 */}
           <section
-            className={`upload-zone ${preview ? 'has-file' : ''}`}
-            onDragOver={(e) => e.preventDefault()}
+            className={`upload-zone ${preview ? 'has-file' : ''} ${isDragOver ? 'drag-over' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+            onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDrop}
           >
             {!preview ? (

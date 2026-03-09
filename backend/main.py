@@ -319,6 +319,14 @@ async def analyze_async(request: Request, file: UploadFile = File(...)):
     return {"task_id": task_id, "status": "processing"}
 
 
+@app.get("/api/v1/history")
+async def list_history(limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0)):
+    """获取历史分析记录列表（已完成任务，最新在前）"""
+    items = tasks.list_completed(limit=limit, offset=offset)
+    total = tasks.count_completed()
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+
 @app.get("/api/v1/task/{task_id}")
 async def get_task(task_id: str):
     """查询任务状态"""

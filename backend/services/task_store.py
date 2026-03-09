@@ -97,6 +97,41 @@ class TaskStore:
         for task_id, data in rows:
             yield task_id, json.loads(data)
 
+    def list_completed(self, limit: int = 20, offset: int = 0) -> list[dict]:
+        """返回已完成的任务列表（最新在前），不含完整result以节省带宽。"""
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT task_id, status, data, created FROM tasks WHERE status='done' ORDER BY created DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        results = []
+        for task_id, status, data, created in rows:
+            parsed = json.loads(data)
+            # 只返回摘要，不返回完整result
+            summary = {
+                "task_id": task_id,
+                "status": status,
+                "created": created,
+                "circuit_type": None,
+                "component_count": 0,
+                "error_count": 0,
+            }
+            result = parsed.get("result") or {}
+            func = result.get("function")
+            if isinstance(func, dict):
+                summary["circuit_type"] = func.get("circuit_type")
+            elif isinstance(func, str):
+                summary["circuit_type"] = func[:60]
+            summary["component_count"] = len(result.get("components") or [])
+            summary["error_count"] = len(result.get("errors") or [])
+            results.append(summary)
+        return results
+
+    def count_completed(self) -> int:
+        conn = self._get_conn()
+        row = conn.execute("SELECT COUNT(*) FROM tasks WHERE status='done'").fetchone()
+        return row[0] if row else 0
+
     # ---- 清理 ----
 
     def cleanup_expired(self, max_age_seconds: int = 600):

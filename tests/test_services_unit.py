@@ -122,7 +122,8 @@ def test_root_endpoint():
 
 def test_analyze_rejects_bad_type():
     from fastapi.testclient import TestClient
-    from main import app
+    from main import app, limiter
+    limiter.reset()
     client = TestClient(app)
     resp = client.post("/api/v1/analyze", files={"file": ("test.txt", b"hello", "text/plain")})
     assert resp.status_code == 400

@@ -11,11 +11,14 @@ AI 电路图辅助工具 - FastAPI 后端服务
 创建时间: 2026-03-02
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List, Any
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # 加载环境变量
 from dotenv import load_dotenv
@@ -45,6 +48,9 @@ from services.nvidia_analyzer import NVIDIAAnalyzer
 from services.bom_generator import BOMGenerator
 from services.error_detector import ErrorDetector
 
+# 速率限制器（按客户端 IP）
+limiter = Limiter(key_func=get_remote_address)
+
 # 创建 FastAPI 应用
 app = FastAPI(
     title="CircuitAI API",
@@ -53,6 +59,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# 注册速率限制器
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # 配置 CORS（跨域支持）
 app.add_middleware(
@@ -181,7 +191,8 @@ async def health_check():
 
 
 @app.post("/api/v1/analyze", response_model=AnalysisResult)
-async def analyze_circuit(file: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def analyze_circuit(request: Request, file: UploadFile = File(...)):
     """
     电路图识别与解释
     
@@ -205,7 +216,8 @@ async def analyze_circuit(file: UploadFile = File(...)):
 
 
 @app.post("/api/v1/bom", response_model=List[BOMItem])
-async def generate_bom(file: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def generate_bom(request: Request, file: UploadFile = File(...)):
     """
     生成 BOM 表（物料清单）
     
@@ -228,7 +240,8 @@ async def generate_bom(file: UploadFile = File(...)):
 
 
 @app.post("/api/v1/detect-errors", response_model=List[ErrorItem])
-async def detect_errors(file: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def detect_errors(request: Request, file: UploadFile = File(...)):
     """
     电路错误检测
     
@@ -254,7 +267,8 @@ async def detect_errors(file: UploadFile = File(...)):
 
 
 @app.post("/api/v1/full-analysis", response_model=AnalysisResult)
-async def full_analysis(file: UploadFile = File(...)):
+@limiter.limit("5/minute")
+async def full_analysis(request: Request, file: UploadFile = File(...)):
     """
     完整分析（识别 + BOM + 错误检测）
     """
@@ -279,7 +293,8 @@ async def full_analysis(file: UploadFile = File(...)):
 # ==================== 异步分析 API ====================
 
 @app.post("/api/v1/analyze-async")
-async def analyze_async(file: UploadFile = File(...)):
+@limiter.limit("5/minute")
+async def analyze_async(request: Request, file: UploadFile = File(...)):
     """异步分析：立即返回任务ID，后台处理"""
     file_content, content_type = await validate_and_read(file)
     task_id = str(uuid.uuid4())[:8]

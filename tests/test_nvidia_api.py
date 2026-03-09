@@ -12,7 +12,7 @@ import asyncio
 from pathlib import Path
 
 # 配置
-API_KEY = os.getenv("NVIDIA_API_KEY", "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")
+API_KEY = os.getenv("NVIDIA_API_KEY", "")
 API_BASE = os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1")
 MODEL = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
 

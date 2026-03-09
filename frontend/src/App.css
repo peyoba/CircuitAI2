@@ -366,3 +366,21 @@ body {
   .info-cards { grid-template-columns: 1fr; }
   .upload-actions { flex-direction: column; }
 }
+
+/* BOM Export Button */
+.btn-export {
+  display: inline-block;
+  margin-left: 12px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: #10b981;
+  border-radius: 6px;
+  text-decoration: none;
+  vertical-align: middle;
+  transition: background 0.2s;
+}
+.btn-export:hover {
+  background: #059669;
+}

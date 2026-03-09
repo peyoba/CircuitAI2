@@ -11,8 +11,9 @@ AI 电路图辅助工具 - FastAPI 后端服务
 创建时间: 2026-03-02
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List, Any
 
@@ -20,6 +21,8 @@ from typing import Optional, List, Any
 from dotenv import load_dotenv
 load_dotenv()
 
+import csv
+import io
 import uuid
 import threading
 import time
@@ -304,6 +307,44 @@ async def get_task(task_id: str):
         del tasks[k]
     
     return task
+
+
+# ==================== BOM 导出 ====================
+
+@app.get("/api/v1/task/{task_id}/export-bom")
+async def export_bom_csv(task_id: str, filename: str = Query("bom.csv")):
+    """将已完成任务的 BOM 表导出为 CSV 文件"""
+    if task_id not in tasks:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    
+    task = tasks[task_id]
+    if task["status"] != "done":
+        raise HTTPException(status_code=400, detail="任务尚未完成")
+    
+    bom = (task.get("result") or {}).get("bom") or []
+    if not bom:
+        raise HTTPException(status_code=404, detail="无 BOM 数据")
+    
+    # 生成 CSV（带 BOM 头以便 Excel 正确识别 UTF-8）
+    buf = io.StringIO()
+    buf.write('\ufeff')  # UTF-8 BOM for Excel
+    writer = csv.writer(buf)
+    writer.writerow(["序号", "元件名称", "型号/参数", "数量", "备注"])
+    for i, item in enumerate(bom, 1):
+        writer.writerow([
+            item.get("index", i),
+            item.get("name", ""),
+            item.get("model", item.get("value", "")),
+            item.get("quantity", ""),
+            item.get("remarks", ""),
+        ])
+    
+    content = buf.getvalue().encode("utf-8")
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 # ==================== 启动配置 ====================

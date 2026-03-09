@@ -166,6 +166,7 @@ function App() {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
+  const [taskId, setTaskId] = useState(null)
   const [loading, setLoading] = useState(false)
   const [loadingTime, setLoadingTime] = useState(0)
   const [error, setError] = useState(null)
@@ -227,6 +228,7 @@ function App() {
         timeout: 30000
       })
       const taskId = submitRes.data.task_id
+      setTaskId(taskId)
       
       // 轮询结果
       while (true) {
@@ -344,7 +346,16 @@ function App() {
             {/* BOM 表 */}
             {bomCount > 0 && (
               <section className="result-card">
-                <h3>📦 BOM 物料清单 <span className="count-badge">{bomCount}</span></h3>
+                <h3>
+                  📦 BOM 物料清单 <span className="count-badge">{bomCount}</span>
+                  {taskId && (
+                    <a
+                      className="btn-export"
+                      href={`${API_BASE}/api/v1/task/${taskId}/export-bom`}
+                      download="bom.csv"
+                    >📥 导出 CSV</a>
+                  )}
+                </h3>
                 <BOMTable bom={result.bom} />
               </section>
             )}

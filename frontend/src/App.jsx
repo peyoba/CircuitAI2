@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import axios from 'axios'
 import './App.css'
 
-const API_BASE = ''
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 /* ========== 元件列表表格 ========== */
 function ComponentsTable({ components }) {
@@ -229,6 +229,16 @@ function App() {
   const [loadingTime, setLoadingTime] = useState(0)
   const [error, setError] = useState(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [loadingStage, setLoadingStage] = useState('')
+
+  const LOADING_STAGES = [
+    [0, '📤 上传文件中...'],
+    [5, '🤖 AI 正在识别元件...'],
+    [20, '🔍 分析拓扑结构...'],
+    [45, '📦 生成 BOM 物料清单...'],
+    [70, '⚠️ 检测潜在问题...'],
+    [90, '📝 整理分析报告...'],
+  ]
 
   // 设置文件的通用方法
   const setImageFile = (f) => {
@@ -276,7 +286,18 @@ function App() {
     setLoading(true)
     setError(null)
     setLoadingTime(0)
-    const timer = setInterval(() => setLoadingTime(t => t + 1), 1000)
+    setLoadingStage(LOADING_STAGES[0][1])
+    const timer = setInterval(() => setLoadingTime(t => {
+      const next = t + 1
+      // Update loading stage based on elapsed time
+      for (let i = LOADING_STAGES.length - 1; i >= 0; i--) {
+        if (next >= LOADING_STAGES[i][0]) {
+          setLoadingStage(LOADING_STAGES[i][1])
+          break
+        }
+      }
+      return next
+    }), 1000)
 
     const formData = new FormData()
     formData.append('file', file)
@@ -375,7 +396,7 @@ function App() {
               <div className="upload-actions">
                 <button className="btn-primary" onClick={handleUpload} disabled={loading}>
                   {loading ? (
-                    <><span className="spinner"></span> AI 分析中 {loadingTime}s（请耐心等待1-2分钟）</>
+                    <><span className="spinner"></span> {loadingStage} ({loadingTime}s)</>
                   ) : '🔍 开始分析'}
                 </button>
                 <button className="btn-secondary" onClick={() => { setFile(null); setPreview(null); setResult(null) }}>
@@ -386,7 +407,14 @@ function App() {
           )}
         </section>
 
-        {error && <div className="error-banner">❌ {error}</div>}
+        {error && (
+          <div className="error-banner">
+            ❌ {error}
+            {file && !loading && (
+              <button className="btn-retry" onClick={handleUpload}>🔄 重试</button>
+            )}
+          </div>
+        )}
 
         {/* 分析结果 */}
         {result && (

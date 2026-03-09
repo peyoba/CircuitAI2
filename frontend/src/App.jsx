@@ -21,7 +21,14 @@ const MAX_POLL_TIME_SEC = 300 // 最长轮询 5 分钟
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB — 与后端一致
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf']
 
+function getInitialTheme() {
+  const saved = localStorage.getItem('circuitai-theme')
+  if (saved) return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 function App() {
+  const [theme, setTheme] = useState(getInitialTheme)
   const [isDragOver, setIsDragOver] = useState(false)
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -50,6 +57,17 @@ function App() {
     setLangState(next)
     window.location.reload()
   }
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('circuitai-theme', next)
+  }
+
+  // 同步 theme 到 <html> data 属性
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
   const setImageFile = (f) => {
     // 客户端文件类型校验
@@ -205,6 +223,9 @@ function App() {
           <h1>{t('title')}</h1>
           <p className="subtitle">{t('subtitle')}</p>
           <div className="header-actions">
+            <button className="btn-theme" onClick={toggleTheme}>
+              {theme === 'dark' ? t('lightMode') : t('darkMode')}
+            </button>
             <button className="btn-lang" onClick={toggleLang}>
               {lang === 'zh' ? 'EN' : '中文'}
             </button>

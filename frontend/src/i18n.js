@@ -6,6 +6,8 @@
 const zh = {
   title: '⚡ CircuitAI',
   subtitle: 'AI 智能电路图分析工具',
+  darkMode: '🌙 暗色',
+  lightMode: '☀️ 亮色',
   history: '📜 历史记录',
   historyTitle: '📜 分析历史',
   noHistory: '暂无历史记录',
@@ -73,6 +75,8 @@ const zh = {
 const en = {
   title: '⚡ CircuitAI',
   subtitle: 'AI-Powered Circuit Diagram Analyzer',
+  darkMode: '🌙 Dark',
+  lightMode: '☀️ Light',
   history: '📜 History',
   historyTitle: '📜 Analysis History',
   noHistory: 'No history yet',

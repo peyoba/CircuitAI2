@@ -387,6 +387,105 @@ body {
   font-size: 13px;
 }
 
+/* ========== 暗色主题按钮 ========== */
+.btn-theme {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-theme:hover { background: rgba(255,255,255,0.25); }
+
+/* ========== Dark Theme ========== */
+[data-theme="dark"] body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .upload-zone {
+  background: #252542;
+  border-color: #3a3a5c;
+}
+[data-theme="dark"] .upload-zone:hover {
+  border-color: #667eea;
+  background: #2a2a4a;
+}
+[data-theme="dark"] .upload-zone.drag-over {
+  background: rgba(102, 126, 234, 0.15);
+}
+
+[data-theme="dark"] .result-card,
+[data-theme="dark"] .stat-item,
+[data-theme="dark"] .history-panel {
+  background: #252542;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .result-card h3 { color: #e0e0e0; }
+[data-theme="dark"] .subtitle { color: #aaa; }
+
+[data-theme="dark"] .data-table th {
+  background: #2a2a4a;
+  color: #ccc;
+  border-bottom-color: #3a3a5c;
+}
+[data-theme="dark"] .data-table td {
+  border-bottom-color: #2a2a4a;
+  color: #ddd;
+}
+[data-theme="dark"] .data-table tr:hover td { background: #2e2e50; }
+[data-theme="dark"] .data-table .value { color: #e0e0e0; }
+
+[data-theme="dark"] .info-card {
+  background: #2a2a4a;
+}
+[data-theme="dark"] .info-value { color: #ccc; }
+
+[data-theme="dark"] .function-card {
+  background: linear-gradient(135deg, #252542, #2a2a4a);
+}
+[data-theme="dark"] .func-type-text { color: #e0e0e0; }
+[data-theme="dark"] .func-desc { color: #bbb; }
+[data-theme="dark"] .func-app { background: #1a1a2e; color: #ccc; }
+
+[data-theme="dark"] .error-card { background: #2e2518; }
+[data-theme="dark"] .error-suggestion { background: #252542; color: #ccc; }
+
+[data-theme="dark"] .error-banner {
+  background: #2e1a1a;
+  color: #fca5a5;
+  border-left-color: #ef4444;
+}
+
+[data-theme="dark"] .node-tag {
+  background: #2a2a4a;
+  color: #8b9cf7;
+  border-color: #3a3a5c;
+}
+
+[data-theme="dark"] .type-badge {
+  background: #2a2a4a;
+  color: #8b9cf7;
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: #2a2a4a;
+  color: #ccc;
+  border-color: #3a3a5c;
+}
+[data-theme="dark"] .btn-secondary:hover { background: #3a3a5c; }
+
+[data-theme="dark"] .history-item { border-bottom-color: #3a3a5c; }
+[data-theme="dark"] .history-name { color: #e0e0e0; }
+
+[data-theme="dark"] .text-content { color: #ccc; }
+[data-theme="dark"] .footer { color: #666; }
+
 /* ========== 响应式 ========== */
 
 /* 平板 */

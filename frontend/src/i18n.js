@@ -62,6 +62,7 @@ const zh = {
   topo_ground_method: '🔌 接地方式',
   topo_modules: '📦 模块划分',
   topo_module_division: '📦 模块划分',
+  errorBoundaryTitle: '页面出错了',
 }
 
 const en = {
@@ -123,6 +124,7 @@ const en = {
   topo_ground_method: '🔌 Grounding',
   topo_modules: '📦 Modules',
   topo_module_division: '📦 Modules',
+  errorBoundaryTitle: 'Something went wrong',
 }
 
 const translations = { zh, en }

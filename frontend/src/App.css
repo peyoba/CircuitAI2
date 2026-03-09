@@ -562,3 +562,17 @@ body {
 }
 .pdf-icon { font-size: 48px; }
 .pdf-name { font-size: 14px; word-break: break-all; }
+
+/* ========== Error Boundary ========== */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+  text-align: center;
+}
+.error-boundary-icon { font-size: 3rem; margin-bottom: 1rem; }
+.error-boundary h2 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #ef4444; }
+.error-boundary-msg { color: #6b7280; margin-bottom: 1.5rem; font-family: monospace; font-size: 0.9rem; }

@@ -162,6 +162,64 @@ function KeyNodes({ nodes }) {
 }
 
 /* ========== 主应用 ========== */
+/* ========== 历史记录管理 ========== */
+const HISTORY_KEY = 'circuitai_history'
+const MAX_HISTORY = 20
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
+  } catch { return [] }
+}
+
+function saveToHistory(entry) {
+  const history = loadHistory()
+  history.unshift(entry)
+  if (history.length > MAX_HISTORY) history.length = MAX_HISTORY
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history))
+}
+
+function removeFromHistory(id) {
+  const history = loadHistory().filter(h => h.id !== id)
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history))
+  return history
+}
+
+function HistoryPanel({ onLoad, onClose }) {
+  const [items, setItems] = useState(loadHistory())
+  if (!items.length) return (
+    <div className="history-panel">
+      <div className="history-header">
+        <h3>📜 分析历史</h3>
+        <button className="btn-close" onClick={onClose}>✕</button>
+      </div>
+      <p className="empty">暂无历史记录</p>
+    </div>
+  )
+  return (
+    <div className="history-panel">
+      <div className="history-header">
+        <h3>📜 分析历史 <span className="count-badge">{items.length}</span></h3>
+        <button className="btn-close" onClick={onClose}>✕</button>
+      </div>
+      <ul className="history-list">
+        {items.map(h => (
+          <li key={h.id} className="history-item">
+            <div className="history-info" onClick={() => onLoad(h)}>
+              <span className="history-name">{h.fileName || '未命名'}</span>
+              <span className="history-date">{new Date(h.timestamp).toLocaleString('zh-CN')}</span>
+              <span className="history-stats">
+                {h.componentCount || 0} 元件 · {h.errorCount || 0} 问题
+              </span>
+            </div>
+            <button className="btn-delete" onClick={() => setItems(removeFromHistory(h.id))}>🗑</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function App() {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -170,11 +228,13 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [loadingTime, setLoadingTime] = useState(0)
   const [error, setError] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   // 设置文件的通用方法
   const setImageFile = (f) => {
     setFile(f)
-    setPreview(URL.createObjectURL(f))
+    // PDF 无法用 img 标签预览，用特殊标记
+    setPreview(f.type === 'application/pdf' ? 'pdf' : URL.createObjectURL(f))
     setResult(null)
     setError(null)
   }
@@ -187,7 +247,7 @@ function App() {
   const handleDrop = (e) => {
     e.preventDefault()
     const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile && droppedFile.type.startsWith('image/')) setImageFile(droppedFile)
+    if (droppedFile && (droppedFile.type.startsWith('image/') || droppedFile.type === 'application/pdf')) setImageFile(droppedFile)
   }
 
   // 全局粘贴监听：Ctrl+V 直接粘贴截图
@@ -238,6 +298,15 @@ function App() {
         
         if (task.status === 'done') {
           setResult(task.result)
+          // 保存到历史记录
+          saveToHistory({
+            id: taskId,
+            fileName: file?.name || '未命名',
+            timestamp: Date.now(),
+            componentCount: task.result?.components?.length || 0,
+            errorCount: task.result?.errors?.length || 0,
+            result: task.result
+          })
           break
         } else if (task.status === 'error') {
           setError(task.error || '分析失败')
@@ -258,12 +327,26 @@ function App() {
   const componentCount = result?.components?.length || 0
   const bomCount = result?.bom?.length || 0
 
+  const handleLoadHistory = (entry) => {
+    setResult(entry.result)
+    setTaskId(entry.id)
+    setPreview(null)
+    setFile(null)
+    setError(null)
+    setShowHistory(false)
+  }
+
   return (
     <div className="app">
       <header className="header">
         <h1>⚡ CircuitAI</h1>
         <p className="subtitle">AI 智能电路图分析工具</p>
+        <button className="btn-history" onClick={() => setShowHistory(!showHistory)}>
+          📜 历史记录
+        </button>
       </header>
+
+      {showHistory && <HistoryPanel onLoad={handleLoadHistory} onClose={() => setShowHistory(false)} />}
 
       <main className="main">
         {/* 上传区域 */}
@@ -276,12 +359,19 @@ function App() {
             <div className="upload-placeholder">
               <div className="upload-icon">📁</div>
               <p>拖拽电路图到这里 / Ctrl+V 粘贴截图 / 点击选择文件</p>
-              <input type="file" accept="image/*" onChange={handleFileChange} id="fileInput" />
+              <input type="file" accept="image/*,.pdf" onChange={handleFileChange} id="fileInput" />
               <label htmlFor="fileInput" className="upload-btn">选择文件</label>
             </div>
           ) : (
             <div className="upload-preview">
-              <img src={preview} alt="电路图预览" className="preview-img" />
+              {preview === 'pdf' ? (
+                <div className="pdf-preview">
+                  <span className="pdf-icon">📄</span>
+                  <span className="pdf-name">{file?.name || 'PDF 文件'}</span>
+                </div>
+              ) : (
+                <img src={preview} alt="电路图预览" className="preview-img" />
+              )}
               <div className="upload-actions">
                 <button className="btn-primary" onClick={handleUpload} disabled={loading}>
                   {loading ? (

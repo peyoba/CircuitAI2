@@ -17,6 +17,8 @@ import './App.css'
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 /* ========== 主应用 ========== */
+const MAX_POLL_TIME_SEC = 300 // 最长轮询 5 分钟
+
 function App() {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -28,6 +30,7 @@ function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [loadingStage, setLoadingStage] = useState('')
   const [lang, setLangState] = useState(getLang())
+  const abortRef = React.useRef(null)
 
   const LOADING_STAGES = [
     [0, t('stage_upload')],
@@ -84,6 +87,11 @@ function App() {
     return () => window.removeEventListener('paste', handlePaste)
   }, [])
 
+  // 组件卸载时取消轮询
+  React.useEffect(() => {
+    return () => { abortRef.current?.abort() }
+  }, [])
+
   const handleUpload = async () => {
     if (!file) { setError(t('selectFirst')); return }
     setLoading(true)
@@ -111,10 +119,24 @@ function App() {
       })
       const newTaskId = submitRes.data.task_id
       setTaskId(newTaskId)
+      const controller = new AbortController()
+      abortRef.current = controller
+      const pollStart = Date.now()
 
-      while (true) {
+      while (!controller.signal.aborted) {
         await new Promise(r => setTimeout(r, 3000))
-        const pollRes = await axios.get(`${API_BASE}/api/v1/task/${newTaskId}`, { timeout: 10000 })
+        if (controller.signal.aborted) break
+
+        const elapsed = (Date.now() - pollStart) / 1000
+        if (elapsed > MAX_POLL_TIME_SEC) {
+          setError(t('timeout'))
+          break
+        }
+
+        const pollRes = await axios.get(`${API_BASE}/api/v1/task/${newTaskId}`, {
+          timeout: 10000,
+          signal: controller.signal
+        })
         const task = pollRes.data
 
         if (task.status === 'done') {

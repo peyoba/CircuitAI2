@@ -26,6 +26,12 @@ import io
 import uuid
 import threading
 import time
+import logging
+
+logger = logging.getLogger("circuitai")
+
+# 文件大小限制：10MB
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 # 任务存储
 tasks = {}
@@ -87,6 +93,39 @@ class ErrorItem(BaseModel):
     suggestion: str  # 修复建议
 
 
+# ==================== 文件校验工具 ====================
+
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif", "pdf"}
+EXT_MIME_MAP = {
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+    "webp": "image/webp", "gif": "image/gif", "pdf": "application/pdf",
+}
+ALLOWED_MIMES = set(EXT_MIME_MAP.values()) | {"application/octet-stream"}
+
+
+async def validate_and_read(file: UploadFile) -> tuple[bytes, str]:
+    """校验上传文件并返回 (内容, content_type)。不合规时抛 HTTPException。"""
+    content_type = file.content_type or "application/octet-stream"
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename else ""
+
+    # 从扩展名修正 MIME
+    if content_type in ("application/octet-stream", "") and ext in EXT_MIME_MAP:
+        content_type = EXT_MIME_MAP[ext]
+
+    if content_type not in ALLOWED_MIMES:
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型: {file.content_type}。支持: PNG, JPG, WebP, PDF")
+
+    file_content = await file.read()
+
+    if len(file_content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail=f"文件过大: {len(file_content)/(1024*1024):.1f}MB，上限 10MB")
+
+    if len(file_content) == 0:
+        raise HTTPException(status_code=400, detail="文件为空")
+
+    return file_content, content_type
+
+
 # ==================== API 端点 ====================
 
 @app.get("/")
@@ -125,20 +164,10 @@ async def analyze_circuit(file: UploadFile = File(...)):
     返回：
     - AnalysisResult: 分析结果对象
     """
-    # 验证文件类型
-    allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的文件类型: {file.content_type}。支持: PNG, JPG, PDF"
-        )
+    file_content, content_type = await validate_and_read(file)
     
-    # 读取文件内容
-    file_content = await file.read()
-    
-    # 调用分析服务
     analyzer = NVIDIAAnalyzer()
-    result = await analyzer.analyze(file_content, file.content_type)
+    result = await analyzer.analyze(file_content, content_type)
     
     return result
 
@@ -158,20 +187,10 @@ async def generate_bom(file: UploadFile = File(...)):
     返回：
     - List[BOMItem]: BOM 表列表
     """
-    # 验证文件类型
-    allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的文件类型: {file.content_type}"
-        )
+    file_content, content_type = await validate_and_read(file)
     
-    # 读取文件内容
-    file_content = await file.read()
-    
-    # 调用 BOM 生成服务
     bom_gen = BOMGenerator()
-    bom_list = await bom_gen.generate(file_content, file.content_type)
+    bom_list = await bom_gen.generate(file_content, content_type)
     
     return bom_list
 
@@ -194,20 +213,10 @@ async def detect_errors(file: UploadFile = File(...)):
     返回：
     - List[ErrorItem]: 错误列表
     """
-    # 验证文件类型
-    allowed_types = ["image/png", "image/jpeg", "image/jpg", "application/pdf"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的文件类型: {file.content_type}"
-        )
+    file_content, content_type = await validate_and_read(file)
     
-    # 读取文件内容
-    file_content = await file.read()
-    
-    # 调用错误检测服务
     detector = ErrorDetector()
-    errors = await detector.detect(file_content, file.content_type)
+    errors = await detector.detect(file_content, content_type)
     
     return errors
 
@@ -217,30 +226,10 @@ async def full_analysis(file: UploadFile = File(...)):
     """
     完整分析（识别 + BOM + 错误检测）
     """
-    import logging
-    logger = logging.getLogger("circuitai")
-    
     logger.info(f"收到文件: {file.filename}, 类型: {file.content_type}, 大小: {file.size}")
     
-    # 验证文件类型（放宽限制）
-    allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif", "application/pdf", "application/octet-stream"]
-    content_type = file.content_type or "application/octet-stream"
-    
-    # 如果content_type不在列表中，尝试从文件名推断
-    if content_type not in allowed_types:
-        ext = (file.filename or "").lower().split(".")[-1] if file.filename else ""
-        ext_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "pdf": "application/pdf"}
-        content_type = ext_map.get(ext, content_type)
-    
-    if content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的文件类型: {file.content_type}。支持: PNG, JPG, WebP, PDF"
-        )
-    
-    # 读取文件内容
-    file_content = await file.read()
-    logger.info(f"文件读取完成, 大小: {len(file_content)} bytes")
+    file_content, content_type = await validate_and_read(file)
+    logger.info(f"文件校验通过, 大小: {len(file_content)} bytes")
     
     try:
         # 调用完整分析服务
@@ -260,16 +249,7 @@ async def full_analysis(file: UploadFile = File(...)):
 @app.post("/api/v1/analyze-async")
 async def analyze_async(file: UploadFile = File(...)):
     """异步分析：立即返回任务ID，后台处理"""
-    import logging
-    logger = logging.getLogger("circuitai")
-    
-    content_type = file.content_type or "application/octet-stream"
-    ext = (file.filename or "").lower().split(".")[-1] if file.filename else ""
-    ext_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
-    if content_type == "application/octet-stream" and ext in ext_map:
-        content_type = ext_map[ext]
-    
-    file_content = await file.read()
+    file_content, content_type = await validate_and_read(file)
     task_id = str(uuid.uuid4())[:8]
     tasks[task_id] = {"status": "processing", "progress": "AI 正在分析电路图...", "result": None, "created": time.time()}
     

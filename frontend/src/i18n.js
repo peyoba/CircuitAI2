@@ -64,6 +64,9 @@ const zh = {
   topo_module_division: '📦 模块划分',
   timeout: '分析超时，请稍后重试',
   errorBoundaryTitle: '页面出错了',
+  fileTooLarge: '文件过大（最大 10MB），请压缩后重试',
+  rateLimited: '请求过于频繁，请稍后再试',
+  invalidFileType: '不支持的文件类型，请上传 PNG/JPG/JPEG/WEBP/PDF',
 }
 
 const en = {
@@ -127,6 +130,9 @@ const en = {
   topo_module_division: '📦 Modules',
   timeout: 'Analysis timed out, please try again later',
   errorBoundaryTitle: 'Something went wrong',
+  fileTooLarge: 'File too large (max 10MB), please compress and retry',
+  rateLimited: 'Too many requests, please try again later',
+  invalidFileType: 'Unsupported file type. Please upload PNG/JPG/JPEG/WEBP/PDF',
 }
 
 const translations = { zh, en }

@@ -18,6 +18,8 @@ const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 /* ========== 主应用 ========== */
 const MAX_POLL_TIME_SEC = 300 // 最长轮询 5 分钟
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB — 与后端一致
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf']
 
 function App() {
   const [file, setFile] = useState(null)
@@ -49,6 +51,16 @@ function App() {
   }
 
   const setImageFile = (f) => {
+    // 客户端文件类型校验
+    if (!ALLOWED_TYPES.includes(f.type)) {
+      setError(t('invalidFileType'))
+      return
+    }
+    // 客户端文件大小校验
+    if (f.size > MAX_FILE_SIZE) {
+      setError(t('fileTooLarge'))
+      return
+    }
     setFile(f)
     setPreview(f.type === 'application/pdf' ? 'pdf' : URL.createObjectURL(f))
     setResult(null)
@@ -156,8 +168,15 @@ function App() {
         }
       }
     } catch (err) {
-      const detail = err.response?.data?.detail || err.message || t('errors')
-      setError(typeof detail === 'object' ? JSON.stringify(detail) : detail)
+      const status = err.response?.status
+      if (status === 429) {
+        setError(t('rateLimited'))
+      } else if (status === 413) {
+        setError(t('fileTooLarge'))
+      } else {
+        const detail = err.response?.data?.detail || err.message || t('errors')
+        setError(typeof detail === 'object' ? JSON.stringify(detail) : detail)
+      }
     } finally {
       clearInterval(timer)
       setLoading(false)

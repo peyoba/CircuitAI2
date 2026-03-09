@@ -45,16 +45,17 @@ def test_reject_bad_mime():
 
 def test_accept_octet_stream_with_png_ext():
     """application/octet-stream + .png 扩展名应被接受（不被类型校验拒绝）"""
-    # 验证类型校验通过：不是 400 "不支持的文件类型"
-    # 下游 API 可能失败（无 token），所以用 try/except 捕获 TestClient 的异常
-    try:
+    from unittest.mock import patch, AsyncMock
+
+    mock_result = {
+        "components": [], "topology": {}, "function": {},
+        "key_nodes": [], "bom": [], "errors": []
+    }
+    with patch("main.NVIDIAAnalyzer.analyze", new_callable=AsyncMock, return_value=mock_result):
         resp = client.post("/api/v1/analyze", files={"file": ("circuit.png", TINY_PNG, "application/octet-stream")})
-        # 500 = downstream API error (type check passed); only fail if 400 with "不支持"
+        # 只要不是 400 "不支持的文件类型" 就说明类型校验通过
         if resp.status_code == 400:
             assert "不支持" not in resp.json().get("detail", "")
-    except Exception:
-        # 下游 API 异常说明文件校验已通过，测试通过
-        pass
 
 
 def test_bom_rejects_empty():

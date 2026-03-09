@@ -11,6 +11,7 @@ pydantic==2.5.0
 Pillow==10.1.0
 # PDF Support
 PyPDF2==3.0.1
+PyMuPDF>=1.27.0
 # Environment
 python-dotenv==1.0.0
 # Testing

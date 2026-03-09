@@ -27,6 +27,7 @@ import uuid
 import threading
 import time
 import logging
+import fitz  # PyMuPDF — PDF to image conversion
 
 logger = logging.getLogger("circuitai")
 
@@ -103,8 +104,30 @@ EXT_MIME_MAP = {
 ALLOWED_MIMES = set(EXT_MIME_MAP.values()) | {"application/octet-stream"}
 
 
+def pdf_to_png(pdf_bytes: bytes, dpi: int = 200) -> bytes:
+    """将 PDF 第一页转换为 PNG 图片（使用 PyMuPDF）。
+    
+    电路原理图通常只有一页，取第一页即可。
+    dpi=200 在清晰度和文件大小之间取平衡。
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    if len(doc) == 0:
+        raise ValueError("PDF 文件无页面")
+    page = doc[0]
+    zoom = dpi / 72  # 72 is PDF default DPI
+    mat = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=mat, alpha=False)
+    png_bytes = pix.tobytes("png")
+    doc.close()
+    return png_bytes
+
+
 async def validate_and_read(file: UploadFile) -> tuple[bytes, str]:
-    """校验上传文件并返回 (内容, content_type)。不合规时抛 HTTPException。"""
+    """校验上传文件并返回 (内容, content_type)。
+    
+    PDF 文件会自动转换为 PNG 图片，因为视觉模型只接受图片格式。
+    不合规时抛 HTTPException。
+    """
     content_type = file.content_type or "application/octet-stream"
     ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename else ""
 
@@ -122,6 +145,15 @@ async def validate_and_read(file: UploadFile) -> tuple[bytes, str]:
 
     if len(file_content) == 0:
         raise HTTPException(status_code=400, detail="文件为空")
+
+    # PDF → PNG 转换：视觉模型需要图片格式
+    if content_type == "application/pdf":
+        try:
+            file_content = pdf_to_png(file_content)
+            content_type = "image/png"
+            logger.info("PDF 已转换为 PNG (%d bytes)", len(file_content))
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"PDF 转换失败: {str(e)}")
 
     return file_content, content_type
 

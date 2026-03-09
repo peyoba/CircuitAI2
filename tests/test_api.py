@@ -80,6 +80,53 @@ async def test_export_bom_no_data(client):
 
 
 @pytest.mark.anyio
+async def test_export_markdown(client):
+    """测试 Markdown 导出"""
+    tid = "test-md-1"
+    tasks[tid] = {
+        "status": "done",
+        "result": {
+            "function": {"circuit_type": "低通滤波器", "description": "RC低通滤波电路"},
+            "components": [
+                {"ref": "R1", "type": "电阻", "value": "10K", "quantity": 1, "pins": "2pin"},
+            ],
+            "topology": {"power_path": "VCC → R1 → GND", "signal_path": "IN → R1 → C1 → OUT"},
+            "key_nodes": ["VCC", "GND", "OUT"],
+            "bom": [{"index": 1, "name": "电阻", "model": "10K 0603", "quantity": 1, "remarks": ""}],
+            "errors": [{"severity": "Low", "type": "去耦电容", "description": "建议添加去耦电容", "suggestion": "在VCC附近添加100nF"}],
+        },
+        "created": __import__("time").time(),
+    }
+    r = await client.get(f"/api/v1/task/{tid}/export-markdown")
+    assert r.status_code == 200
+    assert "text/markdown" in r.headers["content-type"]
+    body = r.text
+    assert "低通滤波器" in body
+    assert "R1" in body
+    assert "VCC → R1 → GND" in body
+    assert "去耦电容" in body
+    assert "BOM" in body
+    del tasks[tid]
+
+
+@pytest.mark.anyio
+async def test_export_markdown_not_found(client):
+    r = await client.get("/api/v1/task/nonexistent/export-markdown")
+    assert r.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_export_markdown_empty_result(client):
+    """空结果也应返回有效 Markdown"""
+    tid = "test-md-empty"
+    tasks[tid] = {"status": "done", "result": {}, "created": __import__("time").time()}
+    r = await client.get(f"/api/v1/task/{tid}/export-markdown")
+    assert r.status_code == 200
+    assert "CircuitAI" in r.text
+    del tasks[tid]
+
+
+@pytest.mark.anyio
 async def test_export_bom_not_done(client):
     tid = "test-bom-pending"
     tasks[tid] = {"status": "processing", "result": None, "created": __import__("time").time()}

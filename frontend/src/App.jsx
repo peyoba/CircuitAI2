@@ -301,6 +301,18 @@ function App() {
         {/* 分析结果 */}
         {result && (
           <div className="results">
+            {/* 导出按钮 */}
+            {taskId && (
+              <div className="export-bar">
+                <a className="btn-export-main" href={`${API_BASE}/api/v1/task/${taskId}/export-markdown`} download="circuit_analysis.md">
+                  📄 导出完整报告 (Markdown)
+                </a>
+                <a className="btn-export-main secondary" href={`${API_BASE}/api/v1/task/${taskId}/export-bom`} download="bom.csv">
+                  📥 导出 BOM (CSV)
+                </a>
+              </div>
+            )}
+
             {/* 概览统计 */}
             <div className="stats-bar">
               <div className="stat-item">
@@ -354,6 +366,13 @@ function App() {
                       href={`${API_BASE}/api/v1/task/${taskId}/export-bom`}
                       download="bom.csv"
                     >📥 导出 CSV</a>
+                  )}
+                  {taskId && (
+                    <a
+                      className="btn-export"
+                      href={`${API_BASE}/api/v1/task/${taskId}/export-markdown`}
+                      download="circuit_analysis.md"
+                    >📄 导出 Markdown</a>
                   )}
                 </h3>
                 <BOMTable bom={result.bom} />

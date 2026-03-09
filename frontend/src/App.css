@@ -381,10 +381,62 @@ body {
 }
 
 /* ========== 响应式 ========== */
-@media (max-width: 640px) {
-  .stats-bar { flex-direction: column; }
+
+/* 平板 */
+@media (max-width: 768px) {
+  .app { padding: 12px; }
+  .header { padding: 24px 0 20px; }
+  .header h1 { font-size: 32px; }
+  .subtitle { font-size: 14px; }
+  .upload-zone { padding: 24px 16px; }
+  .result-card { padding: 16px; }
   .info-cards { grid-template-columns: 1fr; }
+
+  /* 表格横向滚动 */
+  .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-table th, .data-table td { white-space: nowrap; padding: 8px 10px; font-size: 13px; }
+}
+
+/* 手机 */
+@media (max-width: 480px) {
+  .app { padding: 8px; }
+  .header { padding: 16px 0 12px; }
+  .header h1 { font-size: 26px; }
+  .subtitle { font-size: 13px; }
+
+  .upload-zone { padding: 20px 12px; border-radius: 12px; }
+  .upload-icon { font-size: 36px; margin-bottom: 10px; }
+  .preview-img { max-height: 200px; border-radius: 8px; }
+
   .upload-actions { flex-direction: column; }
+  .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+
+  .stats-bar { flex-direction: column; gap: 10px; }
+  .stat-item { padding: 14px; }
+  .stat-num { font-size: 26px; }
+
+  .result-card { padding: 14px; border-radius: 10px; margin-bottom: 12px; }
+  .result-card h3 { font-size: 16px; flex-wrap: wrap; }
+
+  .function-card { padding: 14px; }
+  .func-type-text { font-size: 17px; }
+  .func-desc { font-size: 14px; }
+
+  .error-card { padding: 12px; }
+
+  .key-nodes { gap: 6px; }
+  .node-tag { font-size: 12px; padding: 4px 10px; }
+
+  /* 导出按钮组竖排 */
+  .export-buttons { flex-direction: column; }
+  .btn-export-main { width: 100%; text-align: center; }
+  .btn-export { display: block; margin: 6px 0 0; }
+
+  /* 历史面板全宽 */
+  .history-panel { border-radius: 0; margin: 0 -8px 16px; }
+  .btn-history { right: 8px; top: 8px; padding: 6px 12px; font-size: 13px; }
+
+  .footer { padding: 20px 0; font-size: 12px; }
 }
 
 /* BOM Export Button */

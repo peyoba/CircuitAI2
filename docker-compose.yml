@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
+    volumes:
+      - task-data:/app/data
 
   frontend:
     build: ./frontend
@@ -13,3 +15,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  task-data:

@@ -37,8 +37,8 @@ logger = logging.getLogger("circuitai")
 # 文件大小限制：10MB
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
-# 任务存储
-tasks = {}
+# 任务持久化存储（SQLite，重启不丢失）
+from services.task_store import task_store as tasks
 
 import os
 from datetime import datetime
@@ -328,10 +328,7 @@ async def get_task(task_id: str):
     task = tasks[task_id]
     
     # 清理超过10分钟的旧任务
-    now = time.time()
-    expired = [k for k, v in tasks.items() if now - v.get("created", 0) > 600]
-    for k in expired:
-        del tasks[k]
+    tasks.cleanup_expired(600)
     
     return task
 

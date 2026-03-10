@@ -350,46 +350,59 @@ class NVIDIAAnalyzer:
                 "function": "无法解析",
                 "key_nodes": []
             }
-        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(1))
-            except json.JSONDecodeError:
-                pass
-        
-        try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            pass
-        
+
+        data = self._extract_json_from_text(response)
+        normalized = self._normalize_result(data, raw=response)
+
+        # 仅保留分析所需字段
         return {
-            "components": [],
-            "topology": response,
-            "function": "无法解析，请查看拓扑结构说明",
-            "key_nodes": []
+            "components": normalized.get("components", []),
+            "topology": normalized.get("topology", ""),
+            "function": normalized.get("function", {}),
+            "key_nodes": normalized.get("key_nodes", [])
         }
-    
+
     def _parse_full_response(self, response: str) -> Dict[str, Any]:
         """解析完整分析响应（增强版，支持从思考内容中提取JSON）"""
         empty = {
             "components": [], "topology": "", "function": "",
             "key_nodes": [], "bom": [], "errors": []
         }
-        
+
         if not response:
             empty["topology"] = "API 返回为空"
             return empty
-        
-        # 1. 直接解析
+
+        data = self._extract_json_from_text(response)
+        return self._normalize_result(data, raw=response)
+
+    def _extract_json_from_text(self, text: str) -> Dict[str, Any] | None:
+        """从文本中提取 JSON（容错：优先代码块，其次最大JSON对象）"""
+        if text is None:
+            return None
+
+        # 1) 直接解析
         try:
-            data = json.loads(response)
-            if isinstance(data, dict) and ("components" in data or "topology" in data):
+            data = json.loads(text)
+            if isinstance(data, dict):
                 return data
         except (json.JSONDecodeError, TypeError):
             pass
-        
-        # 2. 提取 ```json ... ```
-        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+
+        # 2) 尝试解析包含 content/reasoning 的 JSON
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict):
+                for key in ("content", "reasoning", "analysis"):
+                    if key in data and isinstance(data[key], str):
+                        candidate = self._extract_json_from_text(data[key])
+                        if candidate:
+                            return candidate
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # 3) ```json ... ```
+        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
         if json_match:
             try:
                 data = json.loads(json_match.group(1))
@@ -397,39 +410,191 @@ class NVIDIAAnalyzer:
                     return data
             except (json.JSONDecodeError, TypeError):
                 pass
-        
-        # 3. 找包含 "components" 的最大JSON块
-        start_idx = response.find('{"components"')
+
+        # 4) 找包含 "components" 的最大JSON块
+        start_idx = text.find('{"components"')
         if start_idx == -1:
-            start_idx = response.find('"components"')
+            start_idx = text.find('"components"')
             if start_idx > 0:
-                # 回退找到前面的 {
                 for i in range(start_idx - 1, -1, -1):
-                    if response[i] == '{':
+                    if text[i] == '{':
                         start_idx = i
                         break
-        
+
         if start_idx >= 0:
-            # 从start_idx开始找平衡的大括号
             depth = 0
             end_idx = start_idx
-            for i in range(start_idx, len(response)):
-                if response[i] == '{':
+            for i in range(start_idx, len(text)):
+                if text[i] == '{':
                     depth += 1
-                elif response[i] == '}':
+                elif text[i] == '}':
                     depth -= 1
                 if depth == 0:
                     end_idx = i + 1
                     break
-            
-            candidate = response[start_idx:end_idx]
+            candidate = text[start_idx:end_idx]
             try:
                 data = json.loads(candidate)
                 if isinstance(data, dict):
                     return data
             except (json.JSONDecodeError, TypeError):
                 pass
-        
-        # 4. 失败，原文放topology
-        empty["topology"] = response[:3000]
-        return empty
+
+        return None
+
+    def _normalize_result(self, data: Dict[str, Any] | None, raw: str = "") -> Dict[str, Any]:
+        """强校验/修复模型输出，保证字段类型稳定"""
+        result = {
+            "components": [],
+            "topology": "",
+            "function": {},
+            "key_nodes": [],
+            "bom": [],
+            "errors": []
+        }
+
+        if not isinstance(data, dict):
+            # 无有效 JSON，直接降级
+            result["topology"] = (raw or "")[:3000]
+            result["function"] = "无法解析，请查看拓扑结构说明"
+            return result
+
+        # 允许中文/别名字段映射
+        alias_map = {
+            "组件": "components",
+            "元件": "components",
+            "拓扑": "topology",
+            "功能": "function",
+            "关键节点": "key_nodes",
+            "BOM": "bom",
+            "错误": "errors",
+        }
+
+        for k, v in list(data.items()):
+            if k in alias_map and alias_map[k] not in data:
+                data[alias_map[k]] = v
+
+        # components
+        components = data.get("components", [])
+        if isinstance(components, dict):
+            components = [components]
+        elif isinstance(components, str):
+            parsed = self._extract_json_from_text(components)
+            if isinstance(parsed, dict):
+                components = [parsed]
+            elif isinstance(parsed, list):
+                components = parsed
+            else:
+                components = []
+
+        normalized_components = []
+        if isinstance(components, list):
+            for c in components:
+                if isinstance(c, dict):
+                    ref = c.get("ref") or c.get("id") or c.get("name") or ""
+                    normalized_components.append({
+                        "id": c.get("id") or ref,
+                        "ref": ref,
+                        "type": c.get("type") or "",
+                        "value": c.get("value") or c.get("model") or "",
+                        "pins": c.get("pins") or c.get("connection") or "",
+                    })
+        result["components"] = normalized_components
+
+        # topology
+        topology = data.get("topology")
+        if isinstance(topology, (dict, list)):
+            topology = json.dumps(topology, ensure_ascii=False)
+        result["topology"] = topology or ""
+
+        # function
+        func = data.get("function")
+        if isinstance(func, str):
+            result["function"] = {
+                "circuit_type": "",
+                "description": func,
+                "applications": ""
+            }
+        elif isinstance(func, dict):
+            result["function"] = {
+                "circuit_type": func.get("circuit_type") or func.get("type") or "",
+                "description": func.get("description") or func.get("desc") or "",
+                "applications": func.get("applications") or func.get("apps") or "",
+            }
+        else:
+            result["function"] = {}
+
+        # key_nodes
+        key_nodes = data.get("key_nodes", [])
+        if isinstance(key_nodes, dict):
+            key_nodes = [key_nodes]
+        elif isinstance(key_nodes, str):
+            parsed = self._extract_json_from_text(key_nodes)
+            if isinstance(parsed, dict):
+                key_nodes = [parsed]
+            elif isinstance(parsed, list):
+                key_nodes = parsed
+            else:
+                key_nodes = []
+
+        normalized_nodes = []
+        if isinstance(key_nodes, list):
+            for n in key_nodes:
+                if isinstance(n, dict):
+                    normalized_nodes.append({
+                        "name": n.get("name") or n.get("node") or "",
+                        "description": n.get("description") or n.get("desc") or "",
+                    })
+        result["key_nodes"] = normalized_nodes
+
+        # bom
+        bom = data.get("bom", [])
+        if isinstance(bom, dict):
+            bom = [bom]
+        elif isinstance(bom, str):
+            parsed = self._extract_json_from_text(bom)
+            if isinstance(parsed, dict):
+                bom = [parsed]
+            elif isinstance(parsed, list):
+                bom = parsed
+            else:
+                bom = []
+        normalized_bom = []
+        if isinstance(bom, list):
+            for i, item in enumerate(bom, start=1):
+                if isinstance(item, dict):
+                    normalized_bom.append({
+                        "index": item.get("index") or i,
+                        "name": item.get("name") or "",
+                        "model": item.get("model") or item.get("value") or "",
+                        "parameters": item.get("parameters") or "",
+                        "quantity": int(item.get("quantity") or 1),
+                        "remarks": item.get("remarks") or "",
+                    })
+        result["bom"] = normalized_bom
+
+        # errors
+        errors = data.get("errors", [])
+        if isinstance(errors, dict):
+            errors = [errors]
+        elif isinstance(errors, str):
+            parsed = self._extract_json_from_text(errors)
+            if isinstance(parsed, dict):
+                errors = [parsed]
+            elif isinstance(parsed, list):
+                errors = parsed
+            else:
+                errors = []
+        normalized_errors = []
+        if isinstance(errors, list):
+            for e in errors:
+                if isinstance(e, dict):
+                    normalized_errors.append({
+                        "type": e.get("type") or "",
+                        "severity": e.get("severity") or "info",
+                        "description": e.get("description") or e.get("desc") or "",
+                        "suggestion": e.get("suggestion") or "",
+                    })
+        result["errors"] = normalized_errors
+
+        return result
